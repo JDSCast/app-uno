@@ -1,8 +1,10 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { Lobby, Cartas, GanadoJuego, Login, Home } from '../pages'
+import { Lobby, Cartas, GanadoJuego, Login, Home, Register } from '../pages'
 import {  TomarCarta, JoinGame } from '../components'
 
+
 const routes = [
+  { path: '/register', name: 'Register', component: Register },
   { path: '/lobby', name: 'Lobby', component: Lobby },
   { path: '/cartas', name: 'Cartas', component: Cartas },
   {path: "/tomar-carta", name: "Tomar-carta", component:TomarCarta },
