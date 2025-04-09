@@ -1,75 +1,151 @@
 <template>
-    <div class="container d-flex flex-column justify-content-between vh-100 py-3">
-      <!-- Turno actual -->
-      <div class="border rounded p-2 mb-2 text-center">
-        <p class="mb-0"><strong>Turno:</strong> {{ turnoActual }}</p>
-      </div>
-  
-      <!-- Lista de jugadores -->
-      <div class="border rounded p-2 mb-2">
-        <div
-          v-for="(jugador, index) in jugadores"
-          :key="index"
-          class="d-flex justify-content-between align-items-center mb-2"
-        >
-          <span>{{ jugador.nombre }}</span>
-          <div class="d-flex align-items-center">
-            <span class="me-2">Cartas: {{ jugador.cartas }}</span>
-            <button
-              v-if="jugador.cartas === 1"
-              class="btn btn-outline-secondary btn-sm py-0 px-2"
-              style="font-size: 0.8rem"
+  <div class="container-fluid vh-100 d-flex flex-column justify-content-between py-3">
+    <!-- Jugador superior (Jugador 3) -->
+    <div class="row justify-content-center mb-3">
+      <div class="col-auto text-center">
+        <p><strong>{{ jugadores[2].nombre }}</strong></p>
+        <p class="mb-1">Cartas: {{ jugadores[2].cartas }}</p>
+        <div class="d-flex justify-content-center">
+          <div
+            v-for="(card, i) in mostrarCartas(jugadores[2].cartas)"
+            :key="'top-' + i"
+            class="bg-primary text-white border border-dark rounded-3 mx-1 position-relative shadow"
+            style="width: 60px; height: 90px;"
+          >
+            <span
+              v-if="i === 0 && jugadores[2].cartas > 3"
+              class="position-absolute top-0 start-50 translate-middle badge bg-dark"
+              >{{ jugadores[2].cartas }}</span
             >
-              ¡UNO!
-            </button>
           </div>
         </div>
       </div>
-  
-      <!-- Carta en juego -->
-      <div class="border rounded text-center py-3 mb-2 flex-grow-1 d-flex flex-column justify-content-center">
-        <p><strong>Carta en juego:</strong></p>
+    </div>
+
+    <!-- Centro: jugador izquierda (4), carta central, jugador derecha (2) -->
+    <div class="row justify-content-center align-items-center flex-grow-1 text-center">
+      <!-- Jugador 4 (izquierda) -->
+      <div class="col-3 text-center">
+        <p><strong>{{ jugadores[3].nombre }}</strong></p>
+        <p class="mb-1">Cartas: {{ jugadores[3].cartas }}</p>
         <div
-          class="mx-auto my-2 bg-warning text-dark rounded-3 d-inline-block px-4 py-2"
-          style="font-size: 3rem;"
+          v-if="jugadores[3].cartas === 1"
+          class="d-flex justify-content-center align-items-center"
+          style="height: 100px;"
         >
+          <div
+            class="bg-danger text-white border border-dark rounded-3 shadow"
+            style="width: 60px; height: 90px;"
+          ></div>
+        </div>
+        <div
+          v-else
+          class="position-relative mx-auto"
+          style="width: 80px; height: 120px;"
+        >
+          <div
+            v-for="(card, i) in mostrarCartas(jugadores[3].cartas)"
+            :key="'left-' + i"
+            class="bg-danger text-white border border-dark rounded-3 position-absolute shadow"
+            :style="{
+              top: `${i * 15}px`,
+              left: `${i * 8}px`,
+              width: '60px',
+              height: '90px',
+              zIndex: i,
+            }"
+          >
+            <span
+              v-if="i === 0 && jugadores[3].cartas > 3"
+              class="position-absolute top-0 start-50 translate-middle badge bg-dark"
+              >{{ jugadores[3].cartas }}</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Carta central -->
+      <div class="col-6">
+        <div class="bg-warning rounded-4 d-inline-block px-4 py-2 mb-1 border border-dark shadow" style="font-size: 3rem;">
           {{ cartaActual.numero }}
         </div>
-        <p class="mb-0">{{ cartaActual.jugador }}</p>
+        <p><strong>{{ cartaActual.jugador }}</strong></p>
       </div>
-  
-      <!-- Controles del jugador -->
-      <div class="d-flex justify-content-between text-center gap-2">
-        <div class="border rounded flex-fill py-2">
-          <div class="fw-bold" style="font-size: 1.2rem">{{ cartasJugador }}</div>
-          <small>Cartas</small>
-        </div>
-  
-        <div class="border rounded flex-fill p-0">
-          <button class="btn btn-warning w-100 h-100 fw-bold">¡UNO!</button>
-        </div>
-  
-        <div class="border rounded flex-fill p-0">
-          <button class="btn btn-secondary w-100 h-100">Tomar del mazo</button>
+
+      <!-- Jugador 2 (derecha) -->
+      <div class="col-3 text-center">
+        <p><strong>{{ jugadores[1].nombre }}</strong></p>
+        <p class="mb-1">Cartas: {{ jugadores[1].cartas }}</p>
+        <div class="position-relative mx-auto" style="width: 80px; height: 120px;">
+          <div
+            v-for="(card, i) in mostrarCartas(jugadores[1].cartas)"
+            :key="'right-' + i"
+            class="bg-success text-white border border-dark rounded-3 position-absolute shadow"
+            :style="{
+              top: `${i * 15}px`,
+              left: `${i * 8}px`,
+              width: '60px',
+              height: '90px',
+              zIndex: i,
+            }"
+          >
+            <span
+              v-if="i === 0 && jugadores[1].cartas > 3"
+              class="position-absolute top-0 start-50 translate-middle badge bg-dark"
+              >{{ jugadores[1].cartas }}</span
+            >
+          </div>
         </div>
       </div>
     </div>
-  </template>
-  
-  <script setup>
-  const jugadores = [
-    { nombre: 'Jugador 2', cartas: 5 },
-    { nombre: 'Jugador 3', cartas: 4 },
-    { nombre: 'Jugador 4', cartas: 1 },
-  ]
-  
-  const turnoActual = 'Jugador 1'
-  
-  const cartaActual = {
-    numero: 6,
-    jugador: 'Jugador 1',
-  }
-  
-  const cartasJugador = 15
-  </script>
-  
+
+    <!-- Parte inferior: jugador 1 y botones -->
+    <div class="row align-items-center text-center">
+      <div class="col-4">
+        <button class="btn btn-outline-dark btn-lg w-100">¡UNO!</button>
+      </div>
+
+      <div class="col-4">
+        <p><strong>{{ jugadores[0].nombre }}</strong></p>
+        <p class="mb-1">Cartas: {{ jugadores[0].cartas }}</p>
+        <div class="d-flex justify-content-center">
+          <div
+            v-for="(card, i) in mostrarCartas(jugadores[0].cartas)"
+            :key="'bottom-' + i"
+            class="bg-info text-white border border-dark rounded-3 mx-1 position-relative shadow"
+            style="width: 60px; height: 90px;"
+          >
+            <span
+              v-if="jugadores[0].cartas > 3 && i === 0"
+              class="position-absolute top-0 start-50 translate-middle badge bg-dark"
+            >
+              {{ jugadores[0].cartas }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-4">
+        <button class="btn btn-outline-dark btn-lg w-100">Tomar del mazo</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+const jugadores = [
+  { nombre: "Jugador 1", cartas: 10 },
+  { nombre: "Jugador 2", cartas: 4 },
+  { nombre: "Jugador 3", cartas: 2 },
+  { nombre: "Jugador 4", cartas: 1 },
+];
+
+const cartaActual = {
+  numero: 6,
+  jugador: "Jugador 1",
+};
+
+function mostrarCartas(cantidad) {
+  return Array(Math.min(cantidad, 3)).fill(null);
+}
+</script>
