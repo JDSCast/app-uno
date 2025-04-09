@@ -58,7 +58,7 @@ export default {
         icon: 'success',
         confirmButtonText: 'Continuar'
       }).then(() => {
-        router.push("/Home");
+        router.push("/home");
       });
 
     } catch (error) {

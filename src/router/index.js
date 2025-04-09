@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { Lobby, Cartas, GanadoJuego, Login, Home, Register } from '../pages'
-import {  TomarCarta, JoinGame } from '../components'
+import { Lobby, Cartas, GanadoJuego, Login, Home, Register, JoinGame} from '../pages'
+import {  TomarCarta } from '../components'
 
 
 const routes = [
@@ -10,7 +10,7 @@ const routes = [
   {path: "/tomar-carta", name: "Tomar-carta", component:TomarCarta },
   {path: "/ganador",name: "GanadoJuego", component: GanadoJuego},
   {path: "/home",name: "Home", component: Home},
-  {path:"/join-game", name: "join-game", component: JoinGame},
+  {path:"/joingame", name: "joingame", component: JoinGame},
   {path: "/login", name : "Login",component: Login},
   {path: "/register", name:"register", component: Register},
   { path: "/:pathMatch(.*)*", redirect: "/login" }, //Redirigir a /login si la ruta no existe
