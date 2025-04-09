@@ -1,8 +1,8 @@
 <template>
-  <div class="container-register">
-    <div class="card card-register mx-auto">
-      <div class="card-body card-body-register">
-        <h2 class="text-center">Registro</h2>
+  <div class="login-container d-flex justify-content-center align-items-center min-vh-100 bg-light">
+    <div class="card card-login w-100" style="max-width: 600px;">
+      <div class="login-card p-5 shadow-sm rounded-3 bg-white">
+        <h1 class="text-center mb-4 fw-bold">Registro</h1>
         <form @submit.prevent="handleRegister">
           <div class="mb-3">
             <label class="form-label">Nombre de usuario</label>
@@ -20,7 +20,7 @@
             <button type="submit" class="btn btn-primary">Registrarse</button>
           </div>
         </form>
-        <p class="text-center mt-3">
+        <p class="mt-3 text-center">
           ¿Ya tienes cuenta? <router-link to="/login">Inicia sesión</router-link>
         </p>
       </div>
@@ -28,14 +28,13 @@
   </div>
 </template>
 
-<!-- <script>
+
+<script>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { getFirestore, doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import Swal from 'sweetalert2';
-
-
 
 export default {
   setup() {
@@ -56,27 +55,32 @@ export default {
     const handleRegister = async () => {
       if (!name.value || !email.value || !password.value) {
         Swal.fire({
-        icon: 'warning',
-        title: 'Campos incompletos',
-        text: 'Todos los campos son obligatorios.',
-        confirmButtonText: 'OK'
-        });
-        //toast.error("Todos los campos son obligatorios");
-        return;
-      }
-      
-
-      try {
-        const existeNombre = await verificarNombreUnico(name.value);
-        if (existeNombre) {
-          Swal.fire({
-          icon: 'error',
-            title: 'Nombre en uso',
-          text: 'El nombre de usuario ya fue registrado por otro jugador.',
+          icon: 'warning',
+          title: 'Campos incompletos',
+          text: 'Todos los campos son obligatorios.',
           confirmButtonText: 'OK'
         });
+        return;
+      }
 
-          //toast.error("El nombre de usuario ya está en uso.");
+      try {
+        // Mostrar loading mientras se valida
+        Swal.fire({
+          title: 'Registrando...',
+          text: 'Por favor espera',
+          allowOutsideClick: false,
+          didOpen: () => Swal.showLoading(),
+        });
+
+        const existeNombre = await verificarNombreUnico(name.value);
+        if (existeNombre) {
+          Swal.close(); // Cerrar loading
+          Swal.fire({
+            icon: 'error',
+            title: 'Nombre en uso',
+            text: 'El nombre de usuario ya fue registrado por otro jugador.',
+            confirmButtonText: 'OK'
+          });
           return;
         }
 
@@ -89,15 +93,21 @@ export default {
           name: name.value,
           email: email.value,
         });
-        Swal.fire({
-        icon: "success",
-        title: "Registrado",
-        text: "Usuario registrado.",
-        confirmButtonText: "OK",
-      });
-  //toast.success("Registro exitoso. Inicia sesión.");
+
+        Swal.close(); // Cerrar loading
+
+        // Mostrar alerta de éxito y redirigir al login después del OK
+        await Swal.fire({
+          icon: "success",
+          title: "Registrado",
+          text: "Usuario registrado correctamente.",
+          confirmButtonText: "OK",
+        });
+
         router.push("/login");
+
       } catch (error) {
+        Swal.close(); // Cerrar loading si hay error
         handleAuthError(error.code);
       }
     };
@@ -121,6 +131,3 @@ export default {
 };
 </script>
 
-<style scoped>
-@import '../styles/register.css';
-</style> -->

@@ -1,27 +1,27 @@
 <template>
-    <div class="login-container d-flex justify-content-center align-items-center min-vh-100 bg-light">
-      <div class="card card-login">
-        <div class="login-card p-4 shadow-sm rounded-3 bg-white">
-          <h1 class="text-center mb-4 fw-bold">Iniciar Sesión</h1>
-          <form @submit.prevent="handleLogin">
-            <div class="mb-3">
-              <label class="form-label">Correo electrónico</label>
-              <input type="email" class="form-control" v-model="email" />
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Contraseña</label>
-              <input type="password" class="form-control" v-model="password" />
-            </div>
-            <div class="d-grid">
-              <button type="submit" class="btn btn-primary">Iniciar Sesión</button>
-            </div>
-          </form>
-          <p class="mt-3 text-center">
-            ¿No tienes cuenta? <router-link to="/register">Regístrate aquí</router-link>
-          </p>
-        </div>
+  <div class="login-container d-flex justify-content-center align-items-center min-vh-100 bg-light">
+    <div class="card card-login w-100" style="max-width: 600px;">
+      <div class="login-card p-5 shadow-sm rounded-3 bg-white">
+        <h1 class="text-center mb-4 fw-bold">Iniciar Sesión</h1>
+        <form @submit.prevent="handleLogin">
+          <div class="mb-3">
+            <label class="form-label">Correo electrónico</label>
+            <input type="email" class="form-control" v-model="email" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Contraseña</label>
+            <input type="password" class="form-control" v-model="password" />
+          </div>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary">Iniciar Sesión</button>
+          </div>
+        </form>
+        <p class="mt-3 text-center">
+          ¿No tienes cuenta? <router-link to="/register">Regístrate aquí</router-link>
+        </p>
       </div>
     </div>
+  </div>
 </template>
 
 <script>
