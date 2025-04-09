@@ -1,9 +1,14 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 // Importar componentes o paginas
-import HelloWorld from "../components/HelloWorld.vue";
+
+import Lobby from '../pages/Lobby.vue'
+import Cartas from '../pages/Cartas.vue'
+import HelloWorld from '../components/HelloWorld.vue'
 
 const routes = [
+  { path: '/lobby', name: 'Lobby', component: Lobby },
+  { path: '/cartas', name: 'Cartas', component: Cartas },
   { path: "/", name: "main", component: HelloWorld },
   { path: "/:pathMatch(.*)*", redirect: "/login" }, //Redirigir a /login si la ruta no existe
 ];
