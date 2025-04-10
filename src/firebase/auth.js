@@ -1,18 +1,25 @@
 import { auth, db } from './config' //llamamos la autentificacion y la base de datos
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, browserLocalPersistence,setPersistence } from 'firebase/auth'//trae las funciones propias de firebase
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, browserLocalPersistence,setPersistence, updateProfile  } from 'firebase/auth'//trae las funciones propias de firebase
 import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
 
 export const AuthService = {
   // Función auxiliar para capitalizar el nombre 
   //capitalizar poner la primera letra en mayuscula y el resto en minuscula
   capitalizeUsername(username) {
-    return username.charAt(0).toUpperCase() + username.slice(1).toLowerCase()
+    if (!username || username.trim().length === 0) {
+      throw new Error("El nombre de usuario no puede estar vacío.");
+    }
+    const cleanUsername = username.trim().replace(/\s+/g, ' ');
+    return cleanUsername
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
   },
 
   // Verificar si el nombre de usuario ya existe
   async isUsernameTaken(username) {
     try {
-      const usersRef = collection(db, 'users')
+      const usersRef = collection(db, 'jugadores')
       const q = query(usersRef, where('nombre', '==', this.capitalizeUsername(username)))
       const querySnapshot = await getDocs(q)
       return !querySnapshot.empty
@@ -39,11 +46,17 @@ export const AuthService = {
       }
 
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      //Agregar el nombre al perfil del usuario
+      await updateProfile(userCredential.user, {
+        displayName: capitalizedName
+      })  
+      // Guardamos el perfil del usuario en una coleccion de Firestore
       await this.createUserProfile(userCredential.user.uid, { 
         ...userData,
         nombre: capitalizedName,
         email 
       })
+
       return {
         user: userCredential.user,
         success: true
@@ -85,6 +98,7 @@ export const AuthService = {
       return onAuthStateChanged(auth, async (user) => {
         if (user) {
           const userProfile = await this.getUserProfile(user.uid)
+          // Si el usuario tiene un perfil, lo pasamos al callback
           callback({ user, profile: userProfile, loggedIn: true })
         } else {
           callback({ user: null, profile: null, loggedIn: false })
@@ -99,9 +113,9 @@ export const AuthService = {
   // Crear perfil de usuario en Firestore
   async createUserProfile(userId, userData) {
     try {
-      await setDoc(doc(db, 'users', userId), {
+      await setDoc(doc(db, 'jugadores', userId), {
         ...userData,
-        createdAt: new Date().toISOString()
+        // createdAt: new Date().toISOString()
       })
       return { success: true }
     } catch (error) {
@@ -110,10 +124,15 @@ export const AuthService = {
     }
   },
 
+  // Devuelve el usuario actual si está autenticado
+  async getCurrentUser() {
+    return auth.currentUser;
+  },
+
   // Obtener perfil de usuario
   async getUserProfile(userId) {
     try {
-      const userDoc = await getDoc(doc(db, 'users', userId))
+      const userDoc = await getDoc(doc(db, 'jugadores', userId))
       return userDoc.exists() ? userDoc.data() : null
     } catch (error) {
       console.error('Error obteniendo el perfil del usuario:', error)
@@ -130,7 +149,9 @@ export const AuthService = {
       'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres',
       'auth/user-not-found': 'Usuario no encontrado',
       'auth/wrong-password': 'Contraseña incorrecta',
-      'name-already-in-use': 'Este nombre de usuario ya está en uso'
+      'name-already-in-use': 'El nombre de usuario ya fue registrado por otro jugador',
+      'auth/invalid-credential': 'Credenciales inválidas, el correo o la contraseña son incorrectos',
+      'auth/user-disabled': 'Usuario deshabilitado',
     }
 
     return {

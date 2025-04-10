@@ -1,12 +1,13 @@
 <template>
-    <div class="login-container d-flex justify-content-center align-items-center min-vh-100 bg-light">
+    <div class="d-flex justify-content-center align-items-center min-vh-100">
       <div class="card card-join">
-        <div class="login-card p-4 shadow-sm rounded-3 bg-white">
+        <div class="p-4 shadow-sm rounded-3 bg-white">
+          <h1 class="text-center mb-4"><i class="bi bi-joystick icon"></i></h1>
           <h1 class="text-center mb-4 fw-bold">Unirse a una partida</h1>
           <input
             type="text"
             class="form-control my-2"
-            placeholder="Ingrese código de la partida"
+            placeholder="Ingrese el código de la partida"
             v-model="codigoIngresado"
             :disabled="esperandoInicio"
           />
@@ -20,7 +21,7 @@
             </button>
           </div>
   
-          <div v-if="esperandoInicio" class="mt-3">
+          <div v-if="esperandoInicio" class="mt-3 text-center">
             <div class="spinner-border text-primary" role="status">
               <span class="visually-hidden">Esperando...</span>
             </div>
@@ -35,8 +36,8 @@
   <script>
   import { ref, watchEffect } from "vue";
   import { useRouter } from "vue-router";
-  import { getAuth } from "firebase/auth";
-  import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot, getDocs } from "firebase/firestore";
+  import { AuthService } from '../firebase/auth.js';
+  import { readDocumentById, queryDocuments, createSubCollection, onSnapshotDocument, readSubcollection } from "../firebase/servicesFirebase.js"
   import Swal from "sweetalert2";
   
   export default {
@@ -47,27 +48,28 @@
       const partidaIniciada = ref(false);
       const jugadores = ref([]);
       const saldo = ref(1500);
-  
-      const auth = getAuth();
-      const db = getFirestore();
+
       const router = useRouter();
   
       const unirseAPartida = async () => {
         try {
-          if (!codigoIngresado.value) {
+          const codigoClean = codigoIngresado.value.trim().toUpperCase();
+
+          if (!codigoClean) {
             Swal.fire("Error", "Debes ingresar un código de partida.", "error");
             return;
           }
+
+
+          // Verifica si la partida existe con el código
+          const partidaSnap = await readDocumentById("partidas", codigoClean);
   
-          const partidaRef = doc(db, "partidas", codigoIngresado.value);
-          const partidaSnap = await getDoc(partidaRef);
-  
-          if (!partidaSnap.exists()) {
+          if (!partidaSnap) {
             Swal.fire("Error", "El código de la partida no existe.", "error");
             return;
           }
   
-          const user = auth.currentUser;
+          const user = await AuthService.getCurrentUser();
           if (!user) {
             Swal.fire("Error", "Debes iniciar sesión para unirte a una partida.", "error");
             return;
@@ -75,57 +77,59 @@
   
           const { displayName, uid } = user;
           const jugadorActual = displayName || "Jugador";
-  
-          const jugadoresRef = collection(db, `partidas/${codigoIngresado.value}/jugadores`);
-          const jugadorDocRef = doc(jugadoresRef, uid);
-          const jugadorSnap = await getDoc(jugadorDocRef);
+          // Trae los jugadores de la partida
+          const jugadoresSnap = await readSubcollection("partidas", partidaSnap.id, "jugadores_partida");
+          console.log("jugadores", jugadoresSnap);
   
           // Verifica si el jugador ya está registrado en la partida
-          if (jugadorSnap.exists()) {
+          const isInGame = jugadoresSnap.some((jugador) => jugador.idJugador === uid);
+          console.log(isInGame)
+          if (isInGame) {
             Swal.fire("Bienvenido de vuelta", "Ya estás registrado en esta partida.", "info");
-            router.push("/partida/" + codigoIngresado.value);
+            router.push("/partida/" + partidaSnap.id);
             return;
           }
   
           // Valida si la partida ya está iniciada
-          if (partidaSnap.data().estado === "iniciada") {
+          if (partidaSnap.estado === "iniciada") {
             Swal.fire("Partida en curso", "La partida ya ha comenzado. No puedes unirte en este momento.", "warning");
             return;
           }
   
           // Valida si la partida ya está llena
-          const jugadoresSnapshot = await getDocs(jugadoresRef);
-          if (jugadoresSnapshot.size >= 6) {
+          if (jugadoresSnap.size >= 4) {
             Swal.fire("Sala llena", "La sala ha alcanzado su capacidad máxima de jugadores.", "error");
             return;
           }
   
-          // Añade al jugador como un documento en la subcolección "jugadores"
-          await setDoc(jugadorDocRef, { nombre: jugadorActual, saldo: 1500, uid });
+          // Añade al jugador como un documento en la subcolección "jugadores_partida"
+          await createSubCollection("partidas", codigoClean,"jugadores_partida", {
+            idJugador: uid,
+            idPartida: partidaSnap.id,
+            host: false,
+            estadoUno: false
+          });
+          // await setDoc(jugadorDocRef, { nombre: jugadorActual, saldo: 1500, uid });
   
           esperandoInicio.value = true;
           Swal.fire({
             title: "Nuevo jugador en la sala",
             icon: "success",
-            text: `¡Bienvenido a la sala ${codigoIngresado.value}! ${jugadorActual} se ha unido al juego.`,
+            text: `¡Bienvenido a la sala ${partidaSnap.id}! ${jugadorActual} se ha unido al juego.`,
           });
   
           mensaje.value = "Te has unido a la partida. Esperando que el anfitrión inicie...";
   
           // Escuchar cambios en la partida
-          onSnapshot(partidaRef, (docSnap) => {
-            if (docSnap.exists()) {
-              if (docSnap.data().estado === "iniciada") {
+          await onSnapshotDocument("partidas",partidaSnap.id, (docSnap) => {
+            if (docSnap) {
+              if (docSnap.estado === "iniciada") {
                 partidaIniciada.value = true;
                 esperandoInicio.value = false;
               }
             }
           });
   
-          // Escuchar cambios en la subcolección "jugadores"
-          onSnapshot(jugadoresRef, (querySnapshot) => {
-            jugadores.value = querySnapshot.docs.map((doc) => doc.data());
-          });
         } catch (error) {
           console.error("Error al unirse a la partida:", error);
           Swal.fire("Error", "No se pudo unir a la partida.", "error");
@@ -134,8 +138,9 @@
   
       // Redirigir cuando la partida se inicie
       watchEffect(() => {
+        let codigoClean = codigoIngresado.value.trim().toUpperCase();
         if (partidaIniciada.value) {
-          router.push("/partida/" + codigoIngresado.value);
+          router.push("/partida/" + codigoClean);
         }
       });
   
@@ -153,4 +158,7 @@
   </script>
   
   <style scoped>
+  .icon{
+    font-size: 5rem;
+  }
   </style>

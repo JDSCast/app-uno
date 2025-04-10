@@ -1,5 +1,5 @@
 <template>
-  <div class="login-container d-flex justify-content-center align-items-center min-vh-100 bg-light">
+  <div class="login-container d-flex justify-content-center align-items-center min-vh-100">
     <div class="card card-login w-100" style="max-width: 600px;">
       <div class="login-card p-5 shadow-sm rounded-3 bg-white">
         <h1 class="text-center mb-4 fw-bold">Iniciar Sesión</h1>
@@ -24,34 +24,34 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebase/config.js';
+import { AuthService } from '../firebase/auth.js';
 import Swal from 'sweetalert2';
 
+const email = ref('');
+const password = ref('');
+const router = useRouter();
 
-export default {
-  setup() {
-    const email = ref('');
-    const password = ref('');
-    const router = useRouter();
-    
-    const handleLogin = async () => {
-      if ( !email.value || !password.value) {
-        //alerta de sweetalert2
-        Swal.fire({
-        title: '¡Error!',
-        text: 'Debes llenar todos los campos.',
-        icon: 'error',
-        });
-        
-        return;
-      }
-    try {
-      await signInWithEmailAndPassword(auth, email.value, password.value);
+const handleLogin = async () => {
+  if (!email.value || !password.value) {
+    //alerta de sweetalert2
+    Swal.fire({
+      title: '¡Error!',
+      text: 'Debes llenar todos los campos.',
+      icon: 'error',
+    });
 
+    return;
+  }
+
+  try {
+    // Llamar al servicio de autenticación para iniciar sesión
+    const result = await AuthService.login({ email: email.value, password: password.value });
+
+    // Verificar si la autenticación fue exitosa
+    if (result.success) {
       Swal.fire({
         title: '¡Bienvenido!',
         text: 'Has iniciado sesión correctamente.',
@@ -60,43 +60,32 @@ export default {
       }).then(() => {
         router.push("/home");
       });
-
-    } catch (error) {
-      console.error("Error al iniciar sesión:", error);
-
+    } else {
       Swal.fire({
-        title: 'Error',
-        text: error.message.includes('auth/user-not-found')
-          ? 'El usuario no existe.'
-          : error.message.includes('auth/wrong-password')
-          ? 'Contraseña incorrecta.'
-          : 'No se puede iniciar sesión.',
+        title: '¡Error!',
+        text: result.error,
         icon: 'error',
         confirmButtonText: 'Intentar de nuevo'
       });
     }
-  };
 
+  } catch (error) {
+    console.error("Error al iniciar sesión:", error);
 
-    const handleAuthError = (errorCode) => {
-      const errorMessages = {
-        'auth/invalid-credential': "Correo o contraseña incorrectos",
-        'auth/user-not-found': "El usuario no está registrado",
-        'auth/wrong-password': "Contraseña incorrecta",
-        'auth/invalid-email': "Correo no válido",
-        'auth/user-disabled': "Este usuario ha sido deshabilitado",
-      };
-      
-      Swal.fire({
-        title: '¡Problemas!',
-        text: {errorMessages},
-        icon: 'Error',
-        confirmButtonText: 'Intentar de nuevo.'
-      })
-    };
-
-    return { email, password, handleLogin };
+    Swal.fire({
+      title: 'Error',
+      text: error.message.includes('auth/user-not-found')
+        ? 'El usuario no existe.'
+        : error.message.includes('auth/wrong-password')
+          ? 'Contraseña incorrecta.'
+          : 'No se puede iniciar sesión.',
+      icon: 'error',
+      confirmButtonText: 'Intentar de nuevo'
+    });
   }
 };
+
 </script>
-  
+
+<style scoped>
+</style>
