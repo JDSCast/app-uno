@@ -86,7 +86,7 @@
           console.log(isInGame)
           if (isInGame) {
             Swal.fire("Bienvenido de vuelta", "Ya estás registrado en esta partida.", "info");
-            router.push("/partida/" + partidaSnap.id);
+            router.push("/gameboard/" + partidaSnap.id);
             return;
           }
   
@@ -140,7 +140,7 @@
       watchEffect(() => {
         let codigoClean = codigoIngresado.value.trim().toUpperCase();
         if (partidaIniciada.value) {
-          router.push("/partida/" + codigoClean);
+          router.push("/gameboard/" + codigoClean);
         }
       });
   

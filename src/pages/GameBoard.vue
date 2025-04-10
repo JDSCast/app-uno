@@ -133,6 +133,21 @@
 </template>
 
 <script setup>
+import { ref, onMounted, onUnmounted} from "vue";
+import { useRouter, useRoute } from "vue-router";
+import { AuthService } from '../firebase/auth.js';
+import { createDocument, readDocumentById, updateDocument, createSubCollection, onSnapshotDocument, onSnapshotSubcollectionWithFullData, readCollection } from "../firebase/servicesFirebase.js";
+import Swal from "sweetalert2";
+
+const route = useRoute();
+const router = useRouter();
+ console.log(route.params.codigo)
+const infoJugadores = ref([]);
+const infoCartas = ref([]);
+const partidaActual = ref([]);
+const cartasJugadores = ref([]);
+const codigoPartida = ref(route.params.codigo);
+
 const jugadores = [
   { nombre: "Jugador 1", cartas: 10 },
   { nombre: "Jugador 2", cartas: 4 },
@@ -148,4 +163,69 @@ const cartaActual = {
 function mostrarCartas(cantidad) {
   return Array(Math.min(cantidad, 3)).fill(null);
 }
+
+//Funcion para tomar una carta aleatoria que no se encuentre en "cartas_partida"
+async function tomarCartaAleatoria() {
+  const cartasDisponibles = infoCartas.value.filter((carta) => !cartasJugadores.value.some((jugador) => jugador.idCarta === carta.id));
+  if (cartasDisponibles.length > 0) {
+    const cartaAleatoria = cartasDisponibles[Math.floor(Math.random() * cartasDisponibles.length)];
+    return cartaAleatoria;
+  } else {
+    console.log("No hay cartas disponibles en el mazo.");
+    return null;
+  }
+}
+
+//Funcion para cambiar carta actual en partida
+const cambiarCartaActual = async (carta) =>{
+  await updateDocument("partidas", codigoPartida.value,{
+    cartaActual: carta.id
+  })
+}
+
+// Funcion para determinar el numero de cartas de cada jugador
+const obtenerCartas = (idJugador) => {
+      // Filtra las cartas por idJugador
+      cartasMano = this.cartasJugadores
+        .filter(carta => carta.idJugador === idJugador)
+        .map(carta => carta.carta);
+
+        return cartaMano
+    }
+
+
+
+
+// Montaje de la infomacion de la partida en tiempo real
+onMounted(async () => {
+  // Escuchar cambios en la subcolección "jugadores_partida"
+  const jugadoresSnap = await onSnapshotSubcollectionWithFullData("partidas", codigoPartida.value, "jugadores_partida", (querySnapshot) => {
+    console.log("jugadoresSnap", querySnapshot)
+    infoJugadores.value = querySnapshot
+  });
+
+
+  // Escuchar cambios en la subcolección "partida"
+  const partidaSnap = await onSnapshotDocument("partidas", codigoPartida.value, (querySnapshot) => {
+    console.log("partidaSnap", querySnapshot)
+    partidaActual.value = querySnapshot
+  });
+
+  // Escuchar cambios en la subcolección "cartas_jugadores" --- Cambiar para solo filtrar las del jugador actual
+  const cartasJugadasSnap = await onSnapshotSubcollectionWithFullData("partidas", codigoPartida.value, "cartas_partida", (querySnapshot) => {
+    console.log("cartasJugadas", querySnapshot)
+    cartasJugadores.value = querySnapshot
+  });
+
+  infoCartas.value = await readCollection ("cartas")
+  console.log("infoCartas", infoCartas.value)
+})
+
+onUnmounted(() => {
+    // Cancela la suscripción cuando el componente se desmonta
+    if (unsubscribe) {
+        unsubscribe();
+    }
+
+});
 </script>

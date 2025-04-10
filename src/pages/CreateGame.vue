@@ -1,20 +1,28 @@
 <template>
-  <div class="container-create text-center">
-    <div class="card card-create">
-      <div class="card-body card-body-create">
-        <h3 class="me-2">Código: {{ codigo }}</h3>
-        <h5>Estado de la partida: <span class="badge bg-primary">{{ estado }}</span></h5>
-        <h4>Lista de participantes</h4>
-        <ul class="list-group">
-          <li v-for="(p, index) in participantes" :key="index" class="list-group-item">
-            {{ p.nombre }}
-          </li>
-        </ul>
-        <div v-if="estado === 'No iniciada'" class="d-grid">
-          <button class="btn btn-outline-primary mt-3" @click="iniciarPartida">Iniciar partida</button>
-          <button class="btn btn-danger mt-3" @click="$router.push('/home')">Volver</button>
+  <div class="container-creategame">
+    <div class="card-creategame p-4">
+      <h2 class="text-center mb-3">Código: {{ codigo }}</h2>
+      <p class="text-center mb-3">
+        Estado de la partida:
+        <span class="badge bg-primary">{{ estado === "iniciada" ? "Iniciada" : "No iniciada" }}</span>
+      </p>
+
+      <h4 class="text-center mb-4">Lista de participantes</h4>
+
+      <!-- Solamente mostrar el nombre del jugador -->
+      <div class="list-group mb-4">
+        <div
+          v-for="(jugador, index) in participantes"
+          :key="index"
+          class="list-group-item"
+        >
+          {{ jugador.nombre }}
         </div>
       </div>
+
+      <button class="btn btn-primary w-100 mb-3" @click="iniciarPartida">Iniciar partida</button>
+      <router-link to="/home"><button class="btn btn-danger w-100">Volver</button></router-link>
+
     </div>
   </div>
 </template>
@@ -67,7 +75,7 @@ export default {
         await createDocument("partidas", {
           codigo: nuevoCodigo,
           estado: "esperando",
-          turnoActual: null,
+          turnoActual: uid, // Revisar si este o el jugadores_partida
           cartaActual: null,
           colorActual: null,
           cartaAcumulada: null,
@@ -94,7 +102,7 @@ export default {
         await onSnapshotDocument("partidas", codigo.value, (docSnap) => {
           if (docSnap) {
             if (docSnap.estado === "iniciada") {
-              router.push(`/partida/${codigo.value}`);
+              router.push(`/gameboard/${codigo.value}`);
             }
           }
         });
@@ -160,15 +168,30 @@ export default {
 
         if (confirmar.isConfirmed) {
           // Valida si el número de jugadores es suficiente
-          if (participantes.value.size < 2) {
+          if (participantes.value.length < 2) {
             Swal.fire("Mínimo de jugadores no alcanzado", "Necesitas al menos 2 jugadores para iniciar la partida.", "error");
             return;
           }
 
           // Asigna las cartas a los jugadores
-          await asignarCartasAJugadores(codigo.value, participantes.value);
-          
-          await updateDocument("partidas", codigo.value, { estado: "iniciada" })
+          // 🔥 ALERTA DE CARGA
+          Swal.fire({
+            title: 'Iniciando partida...',
+            allowOutsideClick: false,
+            didOpen: () => {
+              Swal.showLoading();
+            }
+          });
+
+            // Aquí asignas las cartas
+            await asignarCartasAJugadores(codigo.value, participantes.value);
+
+            // Actualizas el estado a "iniciada"
+            await updateDocument("partidas", codigo.value, { estado: "iniciada" });
+
+            // Una vez todo listo, mostramos éxito
+            await Swal.fire("¡Partida iniciada!", "", "success");
+
         }
       } catch (error) {
         console.error("Error al iniciar la partida:", error);
@@ -181,4 +204,23 @@ export default {
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+.container-creategame {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image: url('/fondo.jpg'); /* mismo fondo de cartas UNO */
+  background-size: cover;
+  background-position: center;
+}
+
+.card-creategame {
+  background: rgba(255, 255, 255); /* blanco con 90% opacidad */
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 400px;
+}
+</style>
