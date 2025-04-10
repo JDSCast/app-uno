@@ -43,6 +43,7 @@ import {
   createSubCollection,
   onSnapshotDocument,
   onSnapshotSubcollectionWithFullData,
+  readCollection
 } from "../firebase/servicesFirebase.js";
 import Swal from "sweetalert2";
 
@@ -146,6 +147,48 @@ export default {
       }
     });
 
+    const asignarCartasAJugadores = async (codigoPartida, jugadores) => {
+      try {
+        // Obtén todas las cartas de la colección "Cartas"
+        const cartasTotalesSnap = await readCollection("cartas"); // Suponiendo que tienes un documento que contiene todas las cartas
+        let cartasDisponibles = cartasTotalesSnap
+
+        if (!cartasDisponibles || cartasDisponibles.length === 0) {
+          throw new Error("No hay cartas disponibles en la colección 'Cartas'.");
+        }
+
+        for (let jugador of jugadores) {
+          const cartasJugador = [];
+
+          for (let i = 0; i < 7; i++) {
+            const indiceAleatorio = Math.floor(Math.random() * cartasDisponibles.length);
+            const cartaSeleccionada = cartasDisponibles[indiceAleatorio];
+
+            cartasJugador.push(cartaSeleccionada);
+
+            // Crea el registro en la subcolección "cartas_partida"
+            await createSubCollection("partidas", codigoPartida, "cartas_partida", {
+              idJugador: jugador.idJugador,
+              idPartida: codigoPartida,
+              idCarta: cartaSeleccionada.id,
+              place: "mano"
+            }, cartaSeleccionada.id);
+
+            // Elimina la carta asignada del conjunto disponible
+            cartasDisponibles.splice(indiceAleatorio, 1);
+          }
+
+          // console.log(`Cartas asignadas al jugador ${jugador.nombre}:`, cartasJugador);
+        }
+
+        console.log("Asignación de cartas completada.");
+      } catch (error) {
+        console.error("Error en la asignación de cartas:", error);
+        throw error;
+      }
+    };
+
+
     const iniciarPartida = async () => {
       try {
         const confirmar = await Swal.fire({
@@ -168,9 +211,16 @@ export default {
             return;
           }
 
+<<<<<<< HEAD
           await updateDocument("partidas", codigo.value, {
             estado: "iniciada",
           });
+=======
+          // Asigna las cartas a los jugadores
+          await asignarCartasAJugadores(codigo.value, participantes.value);
+          
+          await updateDocument("partidas", codigo.value, { estado: "iniciada" })
+>>>>>>> cadee4198a2ceb05908b092db30e3abef74771c7
         }
       } catch (error) {
         console.error("Error al iniciar la partida:", error);

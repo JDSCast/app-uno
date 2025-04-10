@@ -232,7 +232,8 @@ export const createSubCollection = async (
   nombreColeccion,
   id,
   nombreSubColeccion,
-  dataDocument
+  dataDocument,
+  idEspecifico = null
 ) => {
   try {
     // Obtén una referencia al documento padre
@@ -240,10 +241,15 @@ export const createSubCollection = async (
 
     // Obtén una referencia a la subcolección
     const subColeccionRef = collection(docRef, nombreSubColeccion);
-
-    // Agrega un documento a la subcolección
-    const docSubRef = await addDoc(subColeccionRef, dataDocument);
-
+    let docSubRef;
+    // Si se proporciona un ID específico, usa ese ID
+    if (idEspecifico) {
+      docSubRef = doc(subColeccionRef, idEspecifico);
+      await setDoc(docSubRef, dataDocument);
+    } else {
+      
+      docSubRef = await addDoc(subColeccionRef, dataDocument);
+    }
     console.log("Documento agregado a la subcolección con ID: ", docSubRef.id);
   } catch (e) {
     console.error("Error al crear el documento en la subcolección: ", e);
