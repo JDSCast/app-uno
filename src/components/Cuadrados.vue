@@ -2,8 +2,9 @@
     <div @click="alertMe" class="container d-flex flex-column align-items-center m-2 clickable">
         <h3><strong>{{ nombre }}</strong></h3>
         <div class="container-squares">
-        <div v-for="index in displayedSquares.length" :key="index"
-            class="square bg-primary border border-dark shadow d-flex align-items-center justify-content-center"
+            <div v-for="index in displayedSquares.length" :key="index"
+           class="square border border-dark shadow d-flex align-items-center justify-content-center"
+           :class="getPlayerColor(player)" 
             :style="{ top: `${(index - 1) * overlap}px`, left: `${(index - 1) * overlap}px` }">
             <!-- Mostrar número solo en el último cuadro -->
             <span v-if="index === displayedSquares.length && number > maxSquares" class="text-white fw-bold fs-4 p-1 bg-dark rounded-1">
@@ -39,16 +40,35 @@ const props = defineProps({
         type: Number,
         default: 5, // Máximo número de cuadros superpuestos por defecto
     },
+    player: { 
+        type: String, 
+        default: "", 
+    }
 });
 
 // Convertir props a referencias reactivas
-const { nombre, number, maxSquares, overlap } = toRefs(props);
-
+const { nombre, number, maxSquares, overlap, player } = toRefs(props);
 // Lógica para calcular los cuadros visibles
 const displayedSquares = computed(() => {
     const squaresToShow = Math.min(number.value, maxSquares.value);
     return Array.from({ length: squaresToShow });
 });
+
+//No necesita .value porque son datos directos por ahora, no reactivos.
+const getPlayerColor = (player) => {
+  switch (player) {
+    case 'J1':
+      return 'bg-primary'; // Azul
+    case 'J2':
+      return 'bg-success'; // Verde
+    case 'J3':
+      return 'bg-warning'; // Amarillo
+    case 'J4':
+      return 'bg-danger'; // Rojo
+    default:
+      return 'bg-secondary'; // Gris para jugadores no definidos
+  }
+};
 
 const alertMe = ()=>{
     alert("Boton de mis cartas")

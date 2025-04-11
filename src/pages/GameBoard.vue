@@ -1,5 +1,5 @@
 <template>
-  <div class="container-fluid vh-100 d-flex flex-column justify-content-between py-3">
+  <div class="container-fluid vh-100 d-flex flex-column justify-content-between py-3 bg-light-subtle">
     <!-- Mostrar un spinner o mensaje mientras se cargan los datos -->
     <div v-if="loading" class="text-center">
       <p>Cargando datos...</p>
@@ -10,7 +10,7 @@
       <!-- Jugador superior (Jugador 3) -->
       <div class="row justify-content-center mb-3">
         <div v-if="infoJugadores[2]" class="col-auto text-center">
-          <Cuadrados :nombre="infoJugadores[2].nombre" :number="cartasJugador(infoJugadores[2].idJugador).length" />
+          <Cuadrados :nombre="infoJugadores[2].nombre" :number="cartasJugador(infoJugadores[2].idJugador).length" :player="'J4'"/>
         </div>
         <div v-else class="col-auto text-center">
           <p>Jugador no disponible</p>
@@ -21,7 +21,7 @@
       <div class="row justify-content-center align-items-center flex-grow-1 text-center">
         <!-- Jugador 4 (izquierda) -->
         <div v-if="infoJugadores[3]" class="col-3 text-center">
-          <Cuadrados :nombre="infoJugadores[3].nombre" :number="cartasJugador(infoJugadores[3].idJugador).length" />
+          <Cuadrados :nombre="infoJugadores[3].nombre" :number="cartasJugador(infoJugadores[3].idJugador).length" :player="'J3'" />
         </div>
         <div v-else class="col-3 text-center">
           <p>Jugador no disponible</p>
@@ -34,7 +34,7 @@
 
         <!-- Jugador 2 (derecha) -->
         <div v-if="infoJugadores[1]" class="col-3 text-center">
-          <Cuadrados :nombre="infoJugadores[1].nombre" :number="cartasJugador(infoJugadores[1].idJugador).length" />
+          <Cuadrados :nombre="infoJugadores[1].nombre" :number="cartasJugador(infoJugadores[1].idJugador).length" :player="'J2'" />
         </div>
         <div v-else class="col-3 text-center">
           <p>Jugador no disponible</p>
@@ -48,7 +48,7 @@
         </div>
 
         <div v-if="infoJugadores[0]" class="col-4">
-          <Cuadrados :nombre="infoJugadores[0].nombre" :number="cartasJugador(infoJugadores[0].idJugador).length" />
+          <Cuadrados :nombre="infoJugadores[0].nombre" :number="cartasJugador(infoJugadores[0].idJugador).length" :player="'J1'" />
         </div>
         <div v-else class="col-4 text-center">
           <p>Jugador no disponible</p>
@@ -212,13 +212,13 @@ onMounted(async () => {
 
     infoCartas.value = await readCollection ("cartas")
     console.log("infoCartas", infoCartas.value)
-    loading.value = false;
+    // loading.value = false;
   } catch (error) {
     console.error("Error al cargar los datos:", error);
   } 
-  // finally {
-  //   loading.value = false; // Finalizar el estado de carga
-  // }
+  finally {
+    loading.value = false; // Finalizar el estado de carga
+  }
 })
 
 onUnmounted(() => {

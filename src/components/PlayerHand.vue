@@ -4,7 +4,7 @@
       v-for="(card, index) in handCards"
       :key="index"
       :cardData="card"
-      class="mx-1"
+      class="mx-1 central-card"
       @click="selectCard(card)"
     />
   </div>
