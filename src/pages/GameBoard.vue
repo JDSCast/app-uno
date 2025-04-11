@@ -76,7 +76,7 @@ import PlayerHand from '../components/PlayerHand.vue';
 import { ref, onMounted, onUnmounted,computed, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { AuthService } from '../firebase/auth.js';
-import { createSubCollection, readDocumentById, updateDocument, updateSubcollectionDocument, onSnapshotDocument, onSnapshotSubcollectionWithFullData, readCollection } from "../firebase/servicesFirebase.js";
+import { createSubCollection, readDocumentById, updateDocument, updateSubcollectionDocument, onSnapshotDocument, onSnapshotSubcollectionWithFullData, readCollection, listenToMultipleSubcollections, enrichDataWithField} from "../firebase/servicesFirebase.js";
 import Swal from "sweetalert2";
 
 const route = useRoute();
@@ -225,9 +225,9 @@ const obtenerCartas = (idJugador) => {
   return cartasMano;
 };
 
-let unsubscribeJugadoresSnap = null;
 let unsubscribePartidaSnap = null;
-let unsubscribeCartasJugadasSnap = null;
+
+let unsubscribe;
 
 // Montaje de la infomacion de la partida en tiempo real
 onMounted(async () => {
@@ -241,24 +241,25 @@ onMounted(async () => {
     }
     jugadorActual.value = user.uid
     console.log("jugadorActual", jugadorActual.value)
-    // Escuchar cambios en la subcolección "jugadores_partida"
-     unsubscribeJugadoresSnap = await onSnapshotSubcollectionWithFullData("partidas", codigoPartida.value, "jugadores_partida", (querySnapshot) => {
-      console.log("jugadoresSnap", querySnapshot)
-      infoJugadores.value = querySnapshot
-    });
-
-
     // Escuchar cambios en la subcolección "partida"
      unsubscribePartidaSnap = await onSnapshotDocument("partidas", codigoPartida.value, (querySnapshot) => {
       console.log("partidaSnap", querySnapshot)
       partidaActual.value = querySnapshot
     });
 
-    // Escuchar cambios en la subcolección "cartas_jugadores" --- Cambiar para solo filtrar las del jugador actual
-     unsubscribeCartasJugadasSnap = await onSnapshotSubcollectionWithFullData("partidas", codigoPartida.value, "cartas_partida", (querySnapshot) => {
-      console.log("cartasJugadas", querySnapshot)
-      cartasJugadores.value = querySnapshot
-    });
+    unsubscribe = listenToMultipleSubcollections(
+    ["cartas_partida", "jugadores_partida"], // Subcolecciones a escuchar
+    async (datos, subcollection) => {
+      if (subcollection === "cartas_partida") {
+        cartasJugadores.value = datos; // Actualizar estado para cartas_partida
+      } else if (subcollection === "jugadores_partida") {
+        infoJugadores.value = await enrichDataWithField(datos, "jugadores", "idJugador", "nombre"); 
+
+      }
+    },
+    "idPartida", // Campo a filtrar
+    codigoPartida.value// Valor a filtrar
+  );
 
     infoCartas.value = await readCollection ("cartas")
     console.log("infoCartas", infoCartas.value)
@@ -273,12 +274,21 @@ onMounted(async () => {
 
 onUnmounted(() => {
   // Cancela cada suscripción activa
-  if (unsubscribeJugadoresSnap) unsubscribeJugadoresSnap();
+  if (unsubscribe) {
+    unsubscribe(); // Llama a la función para detener todas las suscripciones
+  }
   if (unsubscribePartidaSnap) unsubscribePartidaSnap();
-  if (unsubscribeCartasJugadasSnap) unsubscribeCartasJugadasSnap();
 });
 
 // Observadores de cambios
+// watch(cartasJugadores, () => {
+//   const cartasDelJugador = cartasJugadores.value.filter(
+//     carta => carta.idJugador === jugadorActual.value && carta.place === "mano"
+//   ).map(carta => carta.idCarta);
+
+//   return cartasJugadorFiltradas.value = infoCartas.value.filter(carta => cartasDelJugador.includes(carta.id));
+// }, { immediate: true }); 
+
 // watch([partidaActual,infoCartas], asignarCartaActual, { immediate: true });
 </script>
 <style scoped>

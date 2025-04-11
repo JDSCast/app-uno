@@ -10,7 +10,8 @@ import {
   updateDoc,
   onSnapshot,
   query,
-  where
+  where,
+  collectionGroup,
 } from "firebase/firestore";
 
 // Funciones CRUD para Firestore
@@ -361,4 +362,78 @@ export const onSnapshotSubcollectionWithFullData = (
   } catch (e) {
     console.error("Error al escuchar la subcolección con nombres:", e);
   }
+};
+
+
+export const listenToSubcollectionFiltered = (subcollection, callback, field = "place", value = "mano") => {
+  const subcollectionQuery = query(
+    collectionGroup(db, subcollection), // Subcolección parametrizada
+    where(field, "==", value) // Filtrar por campo y valor personalizados
+  );
+
+  const unsubscribe = onSnapshot(subcollectionQuery, (querySnapshot) => {
+    const data = [];
+    querySnapshot.forEach((doc) => {
+      data.push({ id: doc.id, ...doc.data() });
+    });
+
+    console.log(`Datos filtrados de '${subcollection}' por ${field}='${value}':`, data);
+    callback(data); // Llama al callback con los datos filtrados
+  });
+
+  return unsubscribe; // Retorna una función para detener la escucha
+};
+
+
+export const listenToMultipleSubcollections = (subcollections, callback, field , value) => {
+  const unsubscribes = [];
+
+  subcollections.forEach((subcollection) => {
+    const subcollectionQuery = query(
+      collectionGroup(db, subcollection), // Subcolección dinámica
+      where(field, "==", value) // Filtrar por campo y valor
+    );
+
+    const unsubscribe = onSnapshot(subcollectionQuery, (querySnapshot) => {
+      const data = [];
+      querySnapshot.forEach((doc) => {
+        data.push({ id: doc.id, ...doc.data(), subcollection }); // Agregar el nombre de la subcolección
+      });
+
+      console.log(`Datos filtrados de '${subcollection}' por ${field}='${value}':`, data);
+      callback(data, subcollection); // Devolver datos y subcolección al callback
+    });
+
+    unsubscribes.push(unsubscribe);
+  });
+
+  // Retornar función para detener todas las suscripciones
+  return () => {
+    unsubscribes.forEach((unsubscribe) => unsubscribe());
+  };
+};
+
+export const enrichDataWithField = async (data, targetCollection, fieldToMatch, fieldToRetrieve) => {
+  // Mapea los datos y enriquece cada entrada con información de la colección objetivo
+  console.log("datos enrich",data)
+  const enrichedData = await Promise.all(
+    data.map(async (item) => {
+      const docRef = doc(db, targetCollection, item[fieldToMatch]); // Documento en la colección objetivo
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        return {
+          ...item, // Mantén los datos originales
+          [fieldToRetrieve]: docSnap.data()[fieldToRetrieve], // Añade el campo solicitado
+        };
+      } else {
+        return {
+          ...item,
+          [fieldToRetrieve]: "Desconocido", // Valor por defecto si no se encuentra el documento
+        };
+      }
+    })
+  );
+
+  return enrichedData; // Devuelve los datos enriquecidos
 };
