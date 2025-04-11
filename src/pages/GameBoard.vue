@@ -10,7 +10,8 @@
       <!-- Jugador superior (Jugador 3) -->
       <div class="row justify-content-center mb-3">
         <div v-if="infoJugadores[2]" class="col-auto text-center">
-          <Cuadrados :nombre="infoJugadores[2].nombre" :number="cartasJugador(infoJugadores[2].idJugador).length" :player="'J4'"/>
+          <Cuadrados :nombre="infoJugadores[2].nombre" :number="cartasJugador(infoJugadores[2].idJugador).length"
+            :player="'J4'" />
         </div>
         <div v-else class="col-auto text-center">
           <p>Jugador no disponible</p>
@@ -21,7 +22,8 @@
       <div class="row justify-content-center align-items-center flex-grow-1 text-center">
         <!-- Jugador 4 (izquierda) -->
         <div v-if="infoJugadores[3]" class="col-3 text-center">
-          <Cuadrados :nombre="infoJugadores[3].nombre" :number="cartasJugador(infoJugadores[3].idJugador).length" :player="'J3'" />
+          <Cuadrados :nombre="infoJugadores[3].nombre" :number="cartasJugador(infoJugadores[3].idJugador).length"
+            :player="'J3'" />
         </div>
         <div v-else class="col-3 text-center">
           <p>Jugador no disponible</p>
@@ -30,11 +32,12 @@
         <div class="col-6 d-flex justify-content-center">
           <CentralCard :cardData="cartaActual" />
         </div>
-        
+
 
         <!-- Jugador 2 (derecha) -->
         <div v-if="infoJugadores[1]" class="col-3 text-center">
-          <Cuadrados :nombre="infoJugadores[1].nombre" :number="cartasJugador(infoJugadores[1].idJugador).length" :player="'J2'" />
+          <Cuadrados :nombre="infoJugadores[1].nombre" :number="cartasJugador(infoJugadores[1].idJugador).length"
+            :player="'J2'" />
         </div>
         <div v-else class="col-3 text-center">
           <p>Jugador no disponible</p>
@@ -43,12 +46,13 @@
 
       <!-- Parte inferior: jugador 1 y botones -->
       <div class="row align-items-center text-center">
-        <div  class="col-4">
+        <div class="col-4">
           <button class="btn btn-outline-dark btn-lg w-100">¡UNO!</button>
         </div>
 
         <div v-if="infoJugadores[0]" class="col-4">
-          <Cuadrados :nombre="infoJugadores[0].nombre" :number="cartasJugador(infoJugadores[0].idJugador).length" :player="'J1'" />
+          <Cuadrados :nombre="infoJugadores[0].nombre" :number="cartasJugador(infoJugadores[0].idJugador).length"
+            :player="'J1'" />
         </div>
         <div v-else class="col-4 text-center">
           <p>Jugador no disponible</p>
@@ -58,7 +62,9 @@
           <button @click="tomarCartaNueva" class="btn btn-outline-dark btn-lg w-100">Tomar del mazo</button>
         </div>
       </div>
-      <PlayerHand :handCards="cartasJugador(jugadorActual.value)" @select-card="cartaJugada" />
+      <PlayerHand v-if="estadosListos" :handCards="cartasJugador(jugadorActual.value)" @select-card="cartaJugada"
+        :class="{ 'disabled': isDisabled }" />
+
     </div>
   </div>
 </template>
@@ -95,6 +101,40 @@ const cartasDisponibles = computed(() => {
   }
   return []; // Retorna un array vacío si no hay datos
 });
+
+// Función para cambiar el turno del jugador
+const cambiarTurno = async () => {
+  if (infoJugadores.value.length > 0 && partidaActual.value.turnoActual) {
+    // Obtener el índice actual del jugador en turno
+    const turnoActual = partidaActual.value.turnoActual;
+    const indexActual = infoJugadores.value.findIndex(jugador => jugador.idJugador === turnoActual);
+
+    // Calcular el índice del siguiente jugador en la lista (cíclico)
+    const nuevoIndice = (indexActual + 1) % infoJugadores.value.length;
+    const nuevoTurno = infoJugadores.value[nuevoIndice].idJugador;
+
+    // Actualizar el campo "turno" en Firebase
+    await updateDocument("partidas", codigoPartida.value, {
+      turnoActual: nuevoTurno,
+    });
+
+    console.log(`Turno actualizado: Jugador ${nuevoTurno}`);
+  } else {
+    console.error("No se pudo cambiar el turno.");
+  }
+};
+// Toco computadas las dos por que falla al hacer el renderizado
+const estadosListos = computed(() => partidaActual.value && jugadorActual.value);
+
+const isDisabled = computed(() => {
+  // Solo calcular si los datos están disponibles
+  if (partidaActual.value?.turnoActual && jugadorActual.value) {
+    return partidaActual.value.turnoActual !== jugadorActual.value;
+  }
+  return true; // Predeterminado: deshabilitado si no hay datos
+});
+
+
 
 const tomarCartaNueva = async () => {
   const disponibles = cartasDisponibles.value; // Obtener cartas disponibles
@@ -141,12 +181,22 @@ const cartasJugador = computed(() => (idJugador=jugadorActual.value) => {
   return []; // Si no hay datos, retorna un array vacío
 });
 
-const cartaJugada = (carta) =>{
+const cartaJugada = (carta) => {
   console.log("cartaJugada", carta)
+
+  // Validar si es el turno del jugador actual
+  if (partidaActual.value.turnoActual !== jugadorActual.value) {
+    console.log("No es tu turno, espera tu turno para jugar.");
+    Swal.fire("Espera", "No es tu turno, espera a que jueguen los demás.", "warning");
+    console.log("Turno actual:", partidaActual.value.turnoActual, "Tu ID:", jugadorActual.value);
+    return;
+  }
   // Cambiar la carta actual en la partida
   cambiarCartaActual(carta);
   // Cambiar la carta en la subcolección "cartas_partida"
   updateCartaJugadores(carta);
+  // Cambiar el turno al siguiente jugador
+  cambiarTurno();
 
 }
 
@@ -231,3 +281,9 @@ onUnmounted(() => {
 // Observadores de cambios
 // watch([partidaActual,infoCartas], asignarCartaActual, { immediate: true });
 </script>
+<style scoped>
+.disabled {
+  pointer-events: none;
+  opacity: 0.5;
+}
+</style>
