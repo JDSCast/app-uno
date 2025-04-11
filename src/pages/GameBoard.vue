@@ -1,179 +1,153 @@
 <template>
   <div class="container-fluid vh-100 d-flex flex-column justify-content-between py-3">
-    <!-- Jugador superior (Jugador 3) -->
-    <div class="row justify-content-center mb-3">
-      <div class="col-auto text-center">
-        <p><strong>{{ jugadores[2].nombre }}</strong></p>
-        <p class="mb-1">Cartas: {{ jugadores[2].cartas }}</p>
-        <div class="d-flex justify-content-center">
-          <div
-            v-for="(card, i) in mostrarCartas(jugadores[2].cartas)"
-            :key="'top-' + i"
-            class="bg-primary text-white border border-dark rounded-3 mx-1 position-relative shadow"
-            style="width: 60px; height: 90px;"
-          >
-            <span
-              v-if="i === 0 && jugadores[2].cartas > 3"
-              class="position-absolute top-0 start-50 translate-middle badge bg-dark"
-              >{{ jugadores[2].cartas }}</span
-            >
-          </div>
-        </div>
-      </div>
+    <!-- Mostrar un spinner o mensaje mientras se cargan los datos -->
+    <div v-if="loading" class="text-center">
+      <p>Cargando datos...</p>
     </div>
 
-    <!-- Centro: jugador izquierda (4), carta central, jugador derecha (2) -->
-    <div class="row justify-content-center align-items-center flex-grow-1 text-center">
-      <!-- Jugador 4 (izquierda) -->
-      <div class="col-3 text-center">
-        <p><strong>{{ jugadores[3].nombre }}</strong></p>
-        <p class="mb-1">Cartas: {{ jugadores[3].cartas }}</p>
-        <div
-          v-if="jugadores[3].cartas === 1"
-          class="d-flex justify-content-center align-items-center"
-          style="height: 100px;"
-        >
-          <div
-            class="bg-danger text-white border border-dark rounded-3 shadow"
-            style="width: 60px; height: 90px;"
-          ></div>
+    <!-- Mostrar el contenido solo cuando los datos estén listos -->
+    <div v-else>
+      <!-- Jugador superior (Jugador 3) -->
+      <div class="row justify-content-center mb-3">
+        <div v-if="infoJugadores[2]" class="col-auto text-center">
+          <Cuadrados :nombre="infoJugadores[2].nombre" :number="cartasJugador(infoJugadores[2].idJugador).length" />
         </div>
-        <div
-          v-else
-          class="position-relative mx-auto"
-          style="width: 80px; height: 120px;"
-        >
-          <div
-            v-for="(card, i) in mostrarCartas(jugadores[3].cartas)"
-            :key="'left-' + i"
-            class="bg-danger text-white border border-dark rounded-3 position-absolute shadow"
-            :style="{
-              top: `${i * 15}px`,
-              left: `${i * 8}px`,
-              width: '60px',
-              height: '90px',
-              zIndex: i,
-            }"
-          >
-            <span
-              v-if="i === 0 && jugadores[3].cartas > 3"
-              class="position-absolute top-0 start-50 translate-middle badge bg-dark"
-              >{{ jugadores[3].cartas }}</span
-            >
-          </div>
+        <div v-else class="col-auto text-center">
+          <p>Jugador no disponible</p>
         </div>
       </div>
 
-      <!-- Carta central -->
-      <div class="col-6">
-        <div class="bg-warning rounded-4 d-inline-block px-4 py-2 mb-1 border border-dark shadow" style="font-size: 3rem;">
-          {{ cartaActual.numero }}
+      <!-- Centro: jugador izquierda (4), carta central, jugador derecha (2) -->
+      <div class="row justify-content-center align-items-center flex-grow-1 text-center">
+        <!-- Jugador 4 (izquierda) -->
+        <div v-if="infoJugadores[3]" class="col-3 text-center">
+          <Cuadrados :nombre="infoJugadores[3].nombre" :number="cartasJugador(infoJugadores[3].idJugador).length" />
         </div>
-        <p><strong>{{ cartaActual.jugador }}</strong></p>
-      </div>
-
-      <!-- Jugador 2 (derecha) -->
-      <div class="col-3 text-center">
-        <p><strong>{{ jugadores[1].nombre }}</strong></p>
-        <p class="mb-1">Cartas: {{ jugadores[1].cartas }}</p>
-        <div class="position-relative mx-auto" style="width: 80px; height: 120px;">
-          <div
-            v-for="(card, i) in mostrarCartas(jugadores[1].cartas)"
-            :key="'right-' + i"
-            class="bg-success text-white border border-dark rounded-3 position-absolute shadow"
-            :style="{
-              top: `${i * 15}px`,
-              left: `${i * 8}px`,
-              width: '60px',
-              height: '90px',
-              zIndex: i,
-            }"
-          >
-            <span
-              v-if="i === 0 && jugadores[1].cartas > 3"
-              class="position-absolute top-0 start-50 translate-middle badge bg-dark"
-              >{{ jugadores[1].cartas }}</span
-            >
-          </div>
+        <div v-else class="col-3 text-center">
+          <p>Jugador no disponible</p>
         </div>
-      </div>
-    </div>
+        <!-- Carta central -->
+        <div class="col-6 d-flex justify-content-center">
+          <CentralCard :cardData="cartaActual" />
+        </div>
+        
 
-    <!-- Parte inferior: jugador 1 y botones -->
-    <div class="row align-items-center text-center">
-      <div class="col-4">
-        <button class="btn btn-outline-dark btn-lg w-100">¡UNO!</button>
-      </div>
-
-      <div class="col-4">
-        <p><strong>{{ jugadores[0].nombre }}</strong></p>
-        <p class="mb-1">Cartas: {{ jugadores[0].cartas }}</p>
-        <div class="d-flex justify-content-center">
-          <div
-            v-for="(card, i) in mostrarCartas(jugadores[0].cartas)"
-            :key="'bottom-' + i"
-            class="bg-info text-white border border-dark rounded-3 mx-1 position-relative shadow"
-            style="width: 60px; height: 90px;"
-          >
-            <span
-              v-if="jugadores[0].cartas > 3 && i === 0"
-              class="position-absolute top-0 start-50 translate-middle badge bg-dark"
-            >
-              {{ jugadores[0].cartas }}
-            </span>
-          </div>
+        <!-- Jugador 2 (derecha) -->
+        <div v-if="infoJugadores[1]" class="col-3 text-center">
+          <Cuadrados :nombre="infoJugadores[1].nombre" :number="cartasJugador(infoJugadores[1].idJugador).length" />
+        </div>
+        <div v-else class="col-3 text-center">
+          <p>Jugador no disponible</p>
         </div>
       </div>
 
-      <div class="col-4">
-        <button class="btn btn-outline-dark btn-lg w-100">Tomar del mazo</button>
+      <!-- Parte inferior: jugador 1 y botones -->
+      <div class="row align-items-center text-center">
+        <div  class="col-4">
+          <button class="btn btn-outline-dark btn-lg w-100">¡UNO!</button>
+        </div>
+
+        <div v-if="infoJugadores[0]" class="col-4">
+          <Cuadrados :nombre="infoJugadores[0].nombre" :number="cartasJugador(infoJugadores[0].idJugador).length" />
+        </div>
+        <div v-else class="col-4 text-center">
+          <p>Jugador no disponible</p>
+        </div>
+
+        <div class="col-4">
+          <button @click="tomarCartaNueva" class="btn btn-outline-dark btn-lg w-100">Tomar del mazo</button>
+        </div>
       </div>
+      <PlayerHand :handCards="cartasJugador(jugadorActual.value)" @select-card="cartaJugada" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted} from "vue";
+import Cuadrados from "../components/Cuadrados.vue";
+import CentralCard from "../components/CentralCard.vue";
+import PlayerHand from '../components/PlayerHand.vue';
+import { ref, onMounted, onUnmounted,computed, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { AuthService } from '../firebase/auth.js';
-import { createDocument, readDocumentById, updateDocument, createSubCollection, onSnapshotDocument, onSnapshotSubcollectionWithFullData, readCollection } from "../firebase/servicesFirebase.js";
+import { createSubCollection, readDocumentById, updateDocument, updateSubcollectionDocument, onSnapshotDocument, onSnapshotSubcollectionWithFullData, readCollection } from "../firebase/servicesFirebase.js";
 import Swal from "sweetalert2";
 
 const route = useRoute();
 const router = useRouter();
- console.log(route.params.codigo)
+const jugadorActual = ref();
 const infoJugadores = ref([]);
 const infoCartas = ref([]);
 const partidaActual = ref([]);
 const cartasJugadores = ref([]);
 const codigoPartida = ref(route.params.codigo);
-
-const jugadores = [
-  { nombre: "Jugador 1", cartas: 10 },
-  { nombre: "Jugador 2", cartas: 4 },
-  { nombre: "Jugador 3", cartas: 2 },
-  { nombre: "Jugador 4", cartas: 1 },
-];
-
-const cartaActual = {
-  numero: 6,
-  jugador: "Jugador 1",
-};
-
-function mostrarCartas(cantidad) {
-  return Array(Math.min(cantidad, 3)).fill(null);
-}
+const jugadoresGame = ref([]); // Jugadores de la partida
+const loading = ref(true); // Estado de carga
 
 //Funcion para tomar una carta aleatoria que no se encuentre en "cartas_partida"
-async function tomarCartaAleatoria() {
-  const cartasDisponibles = infoCartas.value.filter((carta) => !cartasJugadores.value.some((jugador) => jugador.idCarta === carta.id));
-  if (cartasDisponibles.length > 0) {
-    const cartaAleatoria = cartasDisponibles[Math.floor(Math.random() * cartasDisponibles.length)];
-    return cartaAleatoria;
-  } else {
-    console.log("No hay cartas disponibles en el mazo.");
-    return null;
+const cartasDisponibles = computed(() => {
+  if (infoCartas.value.length > 0 && cartasJugadores.value.length > 0) {
+    // Filtrar IDs de cartas ya en juego
+    const cartasEnJuego = cartasJugadores.value.map(carta => carta.idCarta);
+
+    // Retornar las cartas de infoCartas que no están en juego
+    return infoCartas.value.filter(carta => !cartasEnJuego.includes(carta.id));
   }
+  return []; // Retorna un array vacío si no hay datos
+});
+
+const tomarCartaNueva = async () => {
+  const disponibles = cartasDisponibles.value; // Obtener cartas disponibles
+
+  if (disponibles.length > 0) {
+    // Elegir una carta aleatoria
+    const cartaAleatoria = disponibles[Math.floor(Math.random() * disponibles.length)];
+
+    // Registrar la carta en juego (añadir a cartasJugadores con el jugador actual)
+    const nuevaCarta = {
+      idCarta: cartaAleatoria.id,
+      idJugador: jugadorActual.value, // ID del jugador actual
+      idPartida: codigoPartida.value,
+      place: "mano", // Ubicación de la carta (en la mano del jugador)
+    };
+
+    await createSubCollection("partidas", codigoPartida.value, "cartas_partida", nuevaCarta, cartaAleatoria.id); // Registrar en Firebase
+    console.log("Carta nueva tomada:", nuevaCarta);
+  } else {
+    console.log("No hay cartas disponibles para tomar.");
+  }
+}
+
+
+// Mapeo de la carta actual como propiedad computada
+const cartaActual = computed(() => {
+  if (infoCartas.value.length > 0 && partidaActual.value.cartaActual) {
+    const idCartaActual = partidaActual.value.cartaActual;
+    return infoCartas.value.find(carta => carta.id === idCartaActual) || null; // Retorna la carta o null si no se encuentra
+  }
+  return null;
+});
+
+const cartasJugador = computed(() => (idJugador=jugadorActual.value) => {
+  if (infoCartas.value.length > 0 && cartasJugadores.value.length > 0) {
+    // Filtrar las cartas que pertenecen al jugador con el id dado
+    const cartasDelJugador = cartasJugadores.value
+      .filter(carta => carta.idJugador === idJugador && carta.place === "mano")
+      .map(carta => carta.idCarta); // Extraer los IDs de las cartas
+
+    // Retornar las cartas con sus datos completos desde infoCartas
+    return infoCartas.value.filter(carta => cartasDelJugador.includes(carta.id));
+  }
+  return []; // Si no hay datos, retorna un array vacío
+});
+
+const cartaJugada = (carta) =>{
+  console.log("cartaJugada", carta)
+  // Cambiar la carta actual en la partida
+  cambiarCartaActual(carta);
+  // Cambiar la carta en la subcolección "cartas_partida"
+  updateCartaJugadores(carta);
+
 }
 
 //Funcion para cambiar carta actual en partida
@@ -183,49 +157,77 @@ const cambiarCartaActual = async (carta) =>{
   })
 }
 
+const updateCartaJugadores = async (carta)=>{
+  await updateSubcollectionDocument("partidas", codigoPartida.value, "cartas_partida", carta.id, {
+    place: "mesa"
+  })
+}
 // Funcion para determinar el numero de cartas de cada jugador
 const obtenerCartas = (idJugador) => {
-      // Filtra las cartas por idJugador
-      cartasMano = this.cartasJugadores
-        .filter(carta => carta.idJugador === idJugador)
-        .map(carta => carta.carta);
+  // Filtra las cartas donde el idJugador coincida con el dado
+  const cartasMano = cartasJugadores.value
+    .filter(carta => carta.idJugador === idJugador)
+    .map(carta => carta.idCarta); 
 
-        return cartaMano
-    }
+  // console.log("ID del jugador:", idJugador);
+  // console.log("Cartas del jugador:", cartasMano);
 
+  return cartasMano;
+};
 
-
+let unsubscribeJugadoresSnap = null;
+let unsubscribePartidaSnap = null;
+let unsubscribeCartasJugadasSnap = null;
 
 // Montaje de la infomacion de la partida en tiempo real
 onMounted(async () => {
-  // Escuchar cambios en la subcolección "jugadores_partida"
-  const jugadoresSnap = await onSnapshotSubcollectionWithFullData("partidas", codigoPartida.value, "jugadores_partida", (querySnapshot) => {
-    console.log("jugadoresSnap", querySnapshot)
-    infoJugadores.value = querySnapshot
-  });
+  try {
+    const user = await AuthService.getCurrentUser();
+    console.log("user", user)
+    if (!user) {
+      Swal.fire("Error", "No estás autenticado. Por favor, inicia sesión.", "error");
+      router.push("/login");
+      return;
+    }
+    jugadorActual.value = user.uid
+    console.log("jugadorActual", jugadorActual.value)
+    // Escuchar cambios en la subcolección "jugadores_partida"
+     unsubscribeJugadoresSnap = await onSnapshotSubcollectionWithFullData("partidas", codigoPartida.value, "jugadores_partida", (querySnapshot) => {
+      console.log("jugadoresSnap", querySnapshot)
+      infoJugadores.value = querySnapshot
+    });
 
 
-  // Escuchar cambios en la subcolección "partida"
-  const partidaSnap = await onSnapshotDocument("partidas", codigoPartida.value, (querySnapshot) => {
-    console.log("partidaSnap", querySnapshot)
-    partidaActual.value = querySnapshot
-  });
+    // Escuchar cambios en la subcolección "partida"
+     unsubscribePartidaSnap = await onSnapshotDocument("partidas", codigoPartida.value, (querySnapshot) => {
+      console.log("partidaSnap", querySnapshot)
+      partidaActual.value = querySnapshot
+    });
 
-  // Escuchar cambios en la subcolección "cartas_jugadores" --- Cambiar para solo filtrar las del jugador actual
-  const cartasJugadasSnap = await onSnapshotSubcollectionWithFullData("partidas", codigoPartida.value, "cartas_partida", (querySnapshot) => {
-    console.log("cartasJugadas", querySnapshot)
-    cartasJugadores.value = querySnapshot
-  });
+    // Escuchar cambios en la subcolección "cartas_jugadores" --- Cambiar para solo filtrar las del jugador actual
+     unsubscribeCartasJugadasSnap = await onSnapshotSubcollectionWithFullData("partidas", codigoPartida.value, "cartas_partida", (querySnapshot) => {
+      console.log("cartasJugadas", querySnapshot)
+      cartasJugadores.value = querySnapshot
+    });
 
-  infoCartas.value = await readCollection ("cartas")
-  console.log("infoCartas", infoCartas.value)
+    infoCartas.value = await readCollection ("cartas")
+    console.log("infoCartas", infoCartas.value)
+    loading.value = false;
+  } catch (error) {
+    console.error("Error al cargar los datos:", error);
+  } 
+  // finally {
+  //   loading.value = false; // Finalizar el estado de carga
+  // }
 })
 
 onUnmounted(() => {
-    // Cancela la suscripción cuando el componente se desmonta
-    if (unsubscribe) {
-        unsubscribe();
-    }
-
+  // Cancela cada suscripción activa
+  if (unsubscribeJugadoresSnap) unsubscribeJugadoresSnap();
+  if (unsubscribePartidaSnap) unsubscribePartidaSnap();
+  if (unsubscribeCartasJugadasSnap) unsubscribeCartasJugadasSnap();
 });
+
+// Observadores de cambios
+// watch([partidaActual,infoCartas], asignarCartaActual, { immediate: true });
 </script>
