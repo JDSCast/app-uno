@@ -76,9 +76,10 @@ export default {
           codigo: nuevoCodigo,
           estado: "esperando",
           turnoActual: uid, // Revisar si este o el jugadores_partida
-          cartaActual: null,
+          cartaActual: "inicio",
           colorActual: null,
           cartaAcumulada: null,
+          ordenInverso: false
         }, nuevoCodigo);
 
         //Añadir el jugador a "jugadores_partida"
