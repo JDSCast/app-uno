@@ -27,7 +27,7 @@
             </div>
           </div>
   
-          <p v-if="mensaje" class="mt-2">{{ mensaje }}</p>
+          <p v-if="mensaje" class="mt-2 text-center">{{ mensaje }}</p>
         </div>
       </div>
     </div>
@@ -84,10 +84,15 @@
           // Verifica si el jugador ya está registrado en la partida
           const isInGame = jugadoresSnap.some((jugador) => jugador.idJugador === uid);
           console.log(isInGame)
-          if (isInGame) {
+          if (isInGame && partidaSnap.estado === "iniciada") {
             Swal.fire("Bienvenido de vuelta", "Ya estás registrado en esta partida.", "info");
             router.push("/gameboard/" + partidaSnap.id);
             return;
+          } else if (isInGame){
+            Swal.fire("Bienvenido de vuelta", "Ya estás registrado en esta partida, pero aún no ha empezado la partida.", "info");
+            mensaje.value = "Esperando que el anfitrión inicie...";
+            esperandoInicio.value = true;
+            next();
           }
   
           // Valida si la partida ya está iniciada
