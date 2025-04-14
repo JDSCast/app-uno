@@ -28,7 +28,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { AuthService } from '../firebase/auth.js';
 import { createDocument, readDocumentById, updateDocument, createSubCollection, onSnapshotDocument, onSnapshotSubcollectionWithFullData, readCollection } from "../firebase/servicesFirebase.js"
@@ -51,6 +51,8 @@ export default {
       return codigo;
     };
 
+    let unsubscribeDocumento = null;
+    let unsubscribeSubcoleccion = null;
     onMounted(async () => {
       const user = await AuthService.getCurrentUser();
       console.log(user)
@@ -95,12 +97,12 @@ export default {
         estado.value = "No iniciada";
 
         // Escuchar cambios en la subcolección "jugadores_partida"
-        await onSnapshotSubcollectionWithFullData ("partidas", codigo.value, "jugadores_partida", (querySnapshot) => {
+        unsubscribeSubcoleccion = await onSnapshotSubcollectionWithFullData ("partidas", codigo.value, "jugadores_partida", (querySnapshot) => {
           participantes.value  = querySnapshot
         });
 
         // Escuchar cambios en la partida
-        await onSnapshotDocument("partidas", codigo.value, (docSnap) => {
+        unsubscribeDocumento = await onSnapshotDocument("partidas", codigo.value, (docSnap) => {
           if (docSnap) {
             if (docSnap.estado === "iniciada") {
               router.push(`/gameboard/${codigo.value}`);
@@ -184,13 +186,13 @@ export default {
           });
 
 
-            await asignarCartasAJugadores(codigo.value, participantes.value);
+          await asignarCartasAJugadores(codigo.value, participantes.value);
 
-            // Actualizar el estado a "iniciada"
-            await updateDocument("partidas", codigo.value, { estado: "iniciada" });
+          // Actualizar el estado a "iniciada"
+          await updateDocument("partidas", codigo.value, { estado: "iniciada" });
 
-            // Una vez todo listo, mostramos éxito
-            await Swal.fire("¡Partida iniciada!", "", "success");
+          // Una vez todo listo, mostramos éxito
+          await Swal.fire("¡Partida iniciada!", "", "success");
 
         }
       } catch (error) {
@@ -199,6 +201,15 @@ export default {
       }
     };
 
+    onUnmounted(() => {
+
+      if (unsubscribeDocumento) {
+        unsubscribeDocumento();
+      }
+      if (unsubscribeSubcoleccion) {
+        unsubscribeSubcoleccion();
+      }
+    });
     return { codigo, participantes, estado, iniciarPartida };
   },
 };

@@ -34,7 +34,7 @@
   </template>
   
   <script>
-  import { ref, watchEffect } from "vue";
+  import { ref, watchEffect, onUnmounted } from "vue";
   import { useRouter } from "vue-router";
   import { AuthService } from '../firebase/auth.js';
   import { readDocumentById, queryDocuments, createSubCollection, onSnapshotDocument, readSubcollection } from "../firebase/servicesFirebase.js"
@@ -50,6 +50,8 @@
       const saldo = ref(1500);
 
       const router = useRouter();
+
+      let unsubscribeDocumento = null;
   
       const unirseAPartida = async () => {
         try {
@@ -119,7 +121,6 @@
             host: false,
             estadoUno: false
           });
-          // await setDoc(jugadorDocRef, { nombre: jugadorActual, saldo: 1500, uid });
   
           esperandoInicio.value = true;
           Swal.fire({
@@ -131,7 +132,7 @@
           mensaje.value = "Te has unido a la partida. Esperando que el anfitrión inicie...";
   
           // Escuchar cambios en la partida
-          await onSnapshotDocument("partidas",partidaSnap.id, (docSnap) => {
+          unsubscribeDocumento = await onSnapshotDocument("partidas",partidaSnap.id, (docSnap) => {
             if (docSnap) {
               if (docSnap.estado === "iniciada") {
                 partidaIniciada.value = true;
@@ -153,7 +154,13 @@
           router.push("/gameboard/" + codigoClean);
         }
       });
-  
+
+      onUnmounted(() => {
+        if (unsubscribeDocumento) {
+          unsubscribeDocumento();
+        }
+      });
+
       return {
         codigoIngresado,
         mensaje,
@@ -165,7 +172,7 @@
       };
     },
   };
-  </script>
+</script>
   
   <style scoped>
   .icon{
