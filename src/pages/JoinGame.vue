@@ -80,7 +80,12 @@
           // Trae los jugadores de la partida
           const jugadoresSnap = await readSubcollection("partidas", partidaSnap.id, "jugadores_partida");
           console.log("jugadores", jugadoresSnap);
-  
+
+          // Valida si la partida ya está iniciada
+          if (partidaSnap.estado === "finalizada") {
+            Swal.fire("Partida finalizada", "La partida ha finalizado. No puedes unirte en este momento.", "warning");
+            return;
+          }
           // Verifica si el jugador ya está registrado en la partida
           const isInGame = jugadoresSnap.some((jugador) => jugador.idJugador === uid);
           console.log(isInGame)
@@ -92,7 +97,7 @@
             Swal.fire("Bienvenido de vuelta", "Ya estás registrado en esta partida, pero aún no ha empezado la partida.", "info");
             mensaje.value = "Esperando que el anfitrión inicie...";
             esperandoInicio.value = true;
-            next();
+            return;
           }
   
           // Valida si la partida ya está iniciada

@@ -77,7 +77,7 @@ export default {
           estado: "esperando",
           turnoActual: uid, // Revisar si este o el jugadores_partida
           cartaActual: "inicio",
-          colorActual: null,
+          colorActual: "ninguno",
           cartaAcumulada: null,
           ordenInverso: false
         }, nuevoCodigo);
@@ -174,8 +174,7 @@ export default {
             return;
           }
 
-          // Asigna las cartas a los jugadores
-          // 🔥 ALERTA DE CARGA
+          // Asignar las cartas a los jugadores
           Swal.fire({
             title: 'Iniciando partida...',
             allowOutsideClick: false,
@@ -184,10 +183,10 @@ export default {
             }
           });
 
-            // Aquí asignas las cartas
+
             await asignarCartasAJugadores(codigo.value, participantes.value);
 
-            // Actualizas el estado a "iniciada"
+            // Actualizar el estado a "iniciada"
             await updateDocument("partidas", codigo.value, { estado: "iniciada" });
 
             // Una vez todo listo, mostramos éxito

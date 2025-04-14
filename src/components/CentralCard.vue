@@ -28,9 +28,19 @@ const props = defineProps({
         required: false,
         default: null,
     },
+    colorActual: { // Para cambiar a los comodines
+        type: String,
+        required: false,
+        default: null,
+    },
+    isCenterCard: { // diferenciar uso como carta central
+        type: Boolean,
+        required: false,
+        default: false,
+    },
 });
 
-const { cardData } = toRefs(props);
+const { cardData, isCenterCard, colorActual } = toRefs(props);
 
 // Mapeo de colores en español a clases de Bootstrap
 const colorMap = {
@@ -51,7 +61,17 @@ const specialCardMap = {
 };
 
 const cardClass = computed(() => {
-    const color = cardData?.value?.color || 'gris'; // Color predeterminado
+    let color;
+
+    // Si la carta es un comodín y esta en la mitad, usar el colorActual de la partida
+    if (isCenterCard.value && (cardData?.value?.tipo === "comodin" || cardData?.value?.tipo === "comodin4")) {
+        // Si es la carta central y es un comodín, usar colorActual
+        color = colorActual.value || 'gris';
+    } else {
+        // Si no es la carta central o no es un comodín, usar el color de la carta
+        color = cardData?.value?.color || 'gris';
+    }
+
     const bootstrapColor = colorMap[color.toLowerCase()] || 'dark'; // Conversión o uso de un color por defecto
     return `bg-${bootstrapColor} text-white`;
 });

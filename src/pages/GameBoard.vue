@@ -30,7 +30,7 @@
         </div>
         <!-- Carta central -->
         <div class="col-6 d-flex justify-content-center">
-          <CentralCard :cardData="cartaActual" />
+          <CentralCard :cardData="cartaActual" :colorActual="partidaActual.colorActual" :isCenterCard="true" />
         </div>
 
 
@@ -59,7 +59,7 @@
         </div>
 
         <div class="col-4">
-          <button @click="tomarCartaNueva" :class="{ 'disabled': isDisabled }" class="btn btn-outline-dark btn-lg w-100">Tomar del mazo</button>
+          <button @click="tomarCartaNueva()" :class="{ 'disabled': isDisabled }" class="btn btn-outline-dark btn-lg w-100">Tomar del mazo</button>
         </div>
       </div>
       <PlayerHand v-if="estadosListos" :handCards="cartasJugador(jugadorActual.value)" @select-card="cartaJugada"
@@ -70,13 +70,12 @@
 </template>
 
 <script setup>
-import Cuadrados from "../components/Cuadrados.vue";
-import CentralCard from "../components/CentralCard.vue";
-import PlayerHand from '../components/PlayerHand.vue';
-import { ref, onMounted, onUnmounted,computed, watch } from "vue";
+import { Cuadrados, CentralCard, PlayerHand } from"../components";
+import { ref, onMounted, onUnmounted,computed, watch, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { AuthService } from '../firebase/auth.js';
-import { createSubCollection, readDocumentById, updateDocument, updateSubcollectionDocument, onSnapshotDocument, onSnapshotSubcollectionWithFullData, readCollection, listenToMultipleSubcollections, enrichDataWithField} from "../firebase/servicesFirebase.js";
+import { createSubCollection, updateDocument, updateSubcollectionDocument, onSnapshotDocument, readCollection, listenToMultipleSubcollections, enrichDataWithField, deleteQuerySubcolletionBatch} from "../firebase/servicesFirebase.js";
+import { mostrarAlertaSecuencial } from "../services/alerts.js";
 import Swal from "sweetalert2";
 
 const route = useRoute();
@@ -137,23 +136,17 @@ const cartasDisponibles = computed(() => {
 });
 
 // Función para cambiar el turno (normal, salto o reversa) -----------------------------------------------------
-const cambiarTurno = async (avance = 1, reversa = partidaActual.value.ordenInverso || false) => {
+const cambiarTurno = async (avance = 1) => {
+  const reversa = partidaActual.value?.ordenInverso || false;
+
   if (infoJugadores.value.length > 0 && partidaActual.value.turnoActual) {
-    // Clonar los jugadores para evitar modificar el original
-    const jugadoresOrdenados = [...infoJugadores.value];
+    // Obtener el ID del siguiente jugador usando función auxiliar
+    const nuevoTurno = getNextPlayerId(infoJugadores.value, partidaActual.value.turnoActual, reversa, avance);
 
-    // Si es reversa, invertir el orden de los jugadores
-    if (reversa) {
-      jugadoresOrdenados.reverse();
+    if (!nuevoTurno) {
+      console.error("No se pudo calcular el próximo turno.");
+      return;
     }
-
-    // Obtener el índice actual del jugador en turno
-    const turnoActual = partidaActual.value.turnoActual;
-    const indexActual = jugadoresOrdenados.findIndex(jugador => jugador.idJugador === turnoActual);
-
-    // Calcular el índice del nuevo turno (cíclico)
-    const nuevoIndice = (indexActual + avance) % jugadoresOrdenados.length;
-    const nuevoTurno = jugadoresOrdenados[nuevoIndice].idJugador;
 
     // Actualizar el campo "turno" en Firebase
     await updateDocument("partidas", codigoPartida.value, {
@@ -166,27 +159,63 @@ const cambiarTurno = async (avance = 1, reversa = partidaActual.value.ordenInver
   }
 };
 
-const tomarCartaNueva = async () => {
+
+// Función para obtener el siguiente jugador (cíclico)
+const getNextPlayerId = (infoJugadores, turnoActual, ordenInverso = false, avance = 1) => {
+  if (infoJugadores.length === 0 || !turnoActual) {
+    console.error("Datos insuficientes para calcular el siguiente jugador.");
+    return null;
+  }
+
+  // Clonar la lista de jugadores y ajustar el orden si está en reversa
+  const jugadoresOrdenados = ordenInverso ? [...infoJugadores].reverse() : [...infoJugadores];
+
+  // Encontrar el índice del jugador actual
+  const indexActual = jugadoresOrdenados.findIndex(jugador => jugador.idJugador === turnoActual);
+  if (indexActual === -1) {
+    console.error("No se encontró al jugador actual en la lista.");
+    return null;
+  }
+
+  // Calcular el índice del siguiente jugador (cíclico)
+  const nuevoIndice = (indexActual + avance) % jugadoresOrdenados.length;
+
+  // Retornar el ID del siguiente jugador
+  return jugadoresOrdenados[nuevoIndice].idJugador;
+};
+
+const tomarCartaNueva = async (idJugador = jugadorActual.value ) => {
   const disponibles = cartasDisponibles.value; // Obtener cartas disponibles
 
   if (disponibles.length > 0) {
     // Elegir una carta aleatoria
     const cartaAleatoria = disponibles[Math.floor(Math.random() * disponibles.length)];
 
-    // Registrar la carta en juego (añadir a cartasJugadores con el jugador actual)
+    // Registrar la carta en juego (añadir a cartasJugadores con el jugador especificado)
     const nuevaCarta = {
       idCarta: cartaAleatoria.id,
-      idJugador: jugadorActual.value, // ID del jugador actual
+      idJugador: idJugador, // ID del jugador específico
       idPartida: codigoPartida.value,
       place: "mano", // Ubicación de la carta (en la mano del jugador)
     };
 
     await createSubCollection("partidas", codigoPartida.value, "cartas_partida", nuevaCarta, cartaAleatoria.id); // Registrar en Firebase
-    console.log("Carta nueva tomada:", nuevaCarta);
+    console.log(`Carta nueva tomada por el jugador ${idJugador}:`, nuevaCarta);
+
+    return nuevaCarta; // Retorna la carta tomada por si se necesita procesar más
   } else {
-    console.log("No hay cartas disponibles para tomar.");
+    console.log("No hay cartas disponibles. Reiniciando baraja...");
+    await reiniciarBaraja("partidas", codigoPartida.value,"cartas_partida","place", "mesa");
+
+    const disponiblesActualizadas = cartasDisponibles.value;
+    if (disponiblesActualizadas.length > 0) {
+      return tomarCartaNueva(idJugador);
+    } else {
+      console.log("Aún no hay cartas disponibles después de reiniciar.");
+      return null;
+    }
   }
-}
+};
 
 //Funcion para cambiar carta actual en partida
 const cambiarCartaActual = async (carta) =>{
@@ -202,14 +231,49 @@ const updateCartaJugadores = async (carta)=>{
 }
 
 // Función para que un jugador tome varias cartas
-const tomarCartas = async (cantidad) => {
+const tomarCartas = async (idJugador, cantidad) => {
+  const cartasTomadas = [];
   for (let i = 0; i < cantidad; i++) {
-    await tomarCartaNueva();
+    const carta = await tomarCartaNueva(idJugador);
+    if (carta) {
+      cartasTomadas.push(carta);
+    } else {
+      console.log(`Jugador ${idJugador} no pudo tomar más cartas (sin cartas disponibles).`);
+      break; // Salir del bucle si no hay más cartas disponibles
+    }
+  }
+  return cartasTomadas; // Retorna un array con las cartas tomadas
+};
+
+const reiniciarBaraja = async (nombreColeccion, idDocumento, subcoleccion, campo, valor) => {
+  try {
+    Swal.fire({
+      title: "Reiniciando baraja...",
+      text: "Por favor espera mientras se barajan las cartas.",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+    //Eliminar las cartas de la subcolección "cartas_partida"
+    await deleteQuerySubcolletionBatch(nombreColeccion, idDocumento, subcoleccion, campo, valor);
+    Swal.fire({
+      icon: "success",
+      title: "Baraja reiniciada",
+    });
+  } catch (error) {
+    // Mostrar alerta de error si algo sale mal
+    Swal.fire({
+      icon: "error",
+      title: "Error al reiniciar",
+      text: "Ocurrió un problema al intentar reiniciar las cartas. Inténtalo de nuevo.",
+    });
+    console.error("Error durante la eliminación de cartas:", error);
   }
 };
 
 // Modificar cartaJugada para aplicar efectos
-const cartaJugada = (carta) => {
+const cartaJugada = async (carta) => {
   // Validar que la carta y la carta actual tengan datos correctos
   if (!carta ) {
     Swal.fire("Error", "Datos de la carta o carta actual no válidos.", "error");
@@ -218,11 +282,10 @@ const cartaJugada = (carta) => {
 
   // Validar si se puede jugar la carta
   if (cartaActual.value) {
-
-    const result = validateCardPlay(carta, cartaActual.value)
+    const result = validateCardPlay(carta, cartaActual.value, partidaActual.value.colorActual)
     if (!result) {
       Swal.fire({
-        title: "Carta inválida", text: "Esta carta no se puede jugar en este momesnto.", icon: "error", showConfirmButton: false,
+        title: "Carta inválida", text: "Esta carta no se puede jugar en este momento.", icon: "error", showConfirmButton: false,
         timer: 1000
       });
       return;
@@ -245,20 +308,25 @@ const cartaJugada = (carta) => {
   applyCardEffect(carta);
 
   // Cambiar el turno al siguiente jugador (si no es un efecto especial que lo altera)
-  if (!["salta", "reversa", "toma2", "comodin4"].includes(carta.tipo)) {
+  if (!["salta", "reversa", "toma2", "comodin", "comodin4"].includes(carta.tipo)) {
     cambiarTurno();
   }
 }
 
 //Reglas del juego UNO ---------------------------------------------------------
-const validateCardPlay = (card, lastCard) => {
+const validateCardPlay = (card, lastCard, colorActual) => {
+  // Tomar el color de la última carta jugada si no es comodin
+  const colorReferencia = lastCard.tipo === "comodin" || lastCard.tipo === "comodin4"
+    ? colorActual
+    : lastCard.color; 
+
   switch (card.tipo) {
     case "numero":
-      return card.color === lastCard.color || card.numero === lastCard.numero;
+      return card.color === colorReferencia || card.numero === lastCard.numero;
     case "salta":
     case "reversa":
     case "toma2":
-      return card.color === lastCard.color || card.tipo === lastCard.tipo;
+      return card.color === colorReferencia || card.tipo === lastCard.tipo;
     case "comodin":
     case "comodin4":
       return true;
@@ -266,7 +334,6 @@ const validateCardPlay = (card, lastCard) => {
       return false;
   }
 };
-
 // Aplicar efectos de las cartas especiales
 const applyCardEffect = async (card) => {
   switch (card.tipo) {
@@ -280,23 +347,133 @@ const applyCardEffect = async (card) => {
       await cambiarTurno(1); // Cambia el orden del turno
       break;
     case "toma2":
-      await tomarCartas(2); // El siguiente jugador toma 2 cartas
-      await cambiarTurno(); // Cambia al siguiente turno
+      await aplicarEfectoToma2(); // El siguiente jugador toma 2 cartas
       break;
     case "comodin":
-      Swal.fire("Comodín", "Selecciona un color para continuar.", "info");
-      // Aquí puedes implementar la lógica para seleccionar un color
+      await aplicarEfectoComodin();
       break;
     case "comodin4":
-      Swal.fire("Comodín +4", "Selecciona un color y el siguiente jugador toma 4 cartas.", "info");
-      // Implementa la lógica para seleccionar un color
-      await tomarCartas(4); // El siguiente jugador toma 4 cartas
-      await cambiarTurno(); // Cambia al siguiente turno
+      await aplicarEfectoComodin4(); // El siguiente jugador toma 4 cartas
       break;
     default:
       console.log("Carta sin efecto especial.");
   }
 };
+
+const aplicarEfectoToma2 = async () => {
+  const siguienteJugador = getNextPlayerId(
+    infoJugadores.value, 
+    partidaActual.value.turnoActual, 
+    partidaActual.value?.ordenInverso, 
+    1
+  );
+
+  if (!siguienteJugador) {
+    console.error("No se pudo determinar el jugador que debe tomar las cartas.");
+    return;
+  }
+
+  console.log(`Jugador que toma 2 cartas: ${siguienteJugador}`);
+  const cartas = await tomarCartas(siguienteJugador, 2); // Tomar 2 cartas
+  console.log(`Cartas añadidas al jugador ${siguienteJugador}:`, cartas);
+  await cambiarTurno(); // Cambia al siguiente turno
+};
+
+const cambiarColorActual = async () => {
+  // Mostrar una alerta para seleccionar el color
+  const { value: colorSeleccionado } = await Swal.fire({
+    title: "Selecciona un color para continuar",
+    input: "radio", // Mostrar opciones como radio buttons
+    inputOptions: {
+      rojo: "Rojo",
+      azul: "Azul",
+      verde: "Verde",
+      amarillo: "Amarillo",
+    },
+    inputValidator: (value) => {
+      if (!value) {
+        return "¡Debes seleccionar un color!";
+      }
+    },
+    confirmButtonText: "Confirmar",
+    cancelButtonText: "Cancelar",
+    showCancelButton: true,
+  });
+
+  // Si el jugador confirma, actualiza el color actual
+  if (colorSeleccionado) {
+    // Actualizar el campo `colorActual` en la partida
+    await updateDocument("partidas", codigoPartida.value, {
+      colorActual: colorSeleccionado
+    });
+
+    console.log(`El color actual ha cambiado a: ${colorSeleccionado}`);
+    return colorSeleccionado; // Retorna el color seleccionado por si necesitas usarlo
+  } else {
+    console.log("El jugador canceló la selección de color.");
+    return null; // Si cancela, retorna null
+  }
+};
+
+const aplicarEfectoComodin = async () => {
+  const nuevoColor = await cambiarColorActual();
+  if (nuevoColor) {
+    console.log("El color ha sido cambiado a:", nuevoColor);
+    await cambiarTurno(); // Cambiar el turno después de actualizar el color
+  } else {
+    Swal.fire("Sin cambios", "No se cambió el color actual.", "info");
+  }
+};
+
+const aplicarEfectoComodin4 = async () => {
+  // Cambiar el color actual
+  const nuevoColor = await cambiarColorActual();
+
+  const siguienteJugador = getNextPlayerId(
+    infoJugadores.value, 
+    partidaActual.value.turnoActual, 
+    partidaActual.value?.ordenInverso, 
+    1 // Avanza solo un turno
+  );
+
+  if (!siguienteJugador) {
+    console.error("No se pudo determinar el jugador que debe tomar las cartas.");
+    return;
+  }
+
+  console.log(`Jugador que toma 4 cartas: ${siguienteJugador}`);
+  const cartas = await tomarCartas(siguienteJugador, 4); // Tomar 4 cartas
+  console.log(`Cartas añadidas al jugador ${siguienteJugador}:`, cartas);
+  await cambiarTurno(); 
+};
+
+const verificarGanador = async (idJugador) => {
+  // Obtener las cartas restantes del jugador
+  console.log("verificando ganador", idJugador)
+  const cartasRestantes = cartasJugador.value(idJugador, "mano");
+  console.log("cartasRestantes", cartasRestantes)
+  // Verificar si el jugador no tiene cartas
+  if (cartasRestantes.length === 0) {
+    const nombreGanador = infoJugadores.value.find(jugador => jugador.idJugador === idJugador)?.nombre;
+
+    // Actualizar la partida en Firebase
+    await updateDocument("partidas", codigoPartida.value, {
+      estado: "finalizado",
+    });
+
+    // Mostrar la alerta al jugador que ganó
+    mostrarAlertaSecuencial(
+      `<p>Felicidades, <strong>${nombreGanador || "Jugador"}</strong>!</p>
+      <p>Disfruta tu victoria.</p>`,
+      "¡Has ganado!",
+      "success");
+
+    return true; // El juego ha terminado
+  }
+
+  return false; //El juego no ha terminado
+};
+
 
 let unsubscribePartidaSnap = null;
 let unsubscribeMultiSubCollection = null;
@@ -352,6 +529,51 @@ onUnmounted(() => {
   if (unsubscribePartidaSnap) unsubscribePartidaSnap();
 });
 
+let inicializando = true; // Flag para controlar la carga inicial
+//Pendiente de las cartas del jugador para verificar si el jugador ha ganado
+watch(cartasJugadores, async (nuevasCartas) => {
+  if (inicializando) {
+    inicializando = false; // Marcar que la inicialización ha terminado
+    return;
+  }
+  const cartasRestantes = cartasJugador.value(jugadorActual.value, "mano");
+  
+  // Solo verificar si el jugador actual no tiene más cartas
+  if (cartasRestantes.length === 0) {
+    const juegoTerminado = await verificarGanador(jugadorActual.value);
+    if (juegoTerminado) {
+      console.log(`Juego terminado. Ganador: ${jugadorActual.value}`);
+    }
+  }
+});
+// Pendiente del estado de la partida para sincronizar el ganador y mostrar el ranking
+watch(partidaActual, async (nuevaPartida) => {
+  // Verificar si la partida ha terminado
+  if (nuevaPartida.estado === "finalizada") {
+    const jugadores = infoJugadores.value;
+
+    // Calcular el ranking basado en las cartas restantes
+    const ranking = jugadores.map(jugador => {
+      const cartasRestantes = cartasJugador.value(jugador.idJugador, "mano").length;
+      return { nombre: jugador.nombre, cartasRestantes };
+    }).sort((a, b) => a.cartasRestantes - b.cartasRestantes); // Ordenar por menor número de cartas
+
+    // Determinar el ganador (primer lugar en el ranking)
+    const ganador = ranking[0]?.nombre || "Desconocido";
+
+    // Crear HTML para mostrar el ranking
+    const rankingHTML = ranking.map((jugador, index) => 
+      `<p>${index + 1}. <strong>${jugador.nombre}</strong>: ${jugador.cartasRestantes} cartas restantes</p>`
+    ).join("");
+
+    // Mostrar la alerta con el ranking final
+    mostrarAlertaSecuencial(
+      `<p>El jugador <strong>${ganador}</strong> ha ganado la partida.</p><p>Ranking final:</p>${rankingHTML}`,
+      "¡Juego Terminado!",
+      "info"
+    );
+  }
+});
 
 </script>
 <style scoped>

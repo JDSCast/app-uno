@@ -12,6 +12,7 @@ import {
   query,
   where,
   collectionGroup,
+  writeBatch,
 } from "firebase/firestore";
 
 // Funciones CRUD para Firestore
@@ -436,4 +437,33 @@ export const enrichDataWithField = async (data, targetCollection, fieldToMatch, 
   );
 
   return enrichedData; // Devuelve los datos enriquecidos
+};
+
+export const deleteQuerySubcolletionBatch = async (nombreColeccion, idDocumento, subcoleccion, campo, valor) => {
+  try {
+    const subcoleccionRef = collection(db, nombreColeccion, idDocumento, subcoleccion);
+    const consulta = query(subcoleccionRef, where(campo, "==", valor));
+
+    // Obtener documentos que cumplen el criterio
+    const snapshot = await getDocs(consulta);
+
+    if (!snapshot.empty) {
+      // Crear una instancia de WriteBatch
+      const batch = writeBatch(db);
+
+      // Agregar cada documento al batch para ser eliminado
+      snapshot.docs.forEach((docSnap) => {
+        const docRef = doc(db, nombreColeccion, idDocumento, subcoleccion, docSnap.id);
+        batch.delete(docRef);
+      });
+
+      // Confirmar todas las operaciones en el batch
+      await batch.commit();
+      console.log(`Se eliminaron ${snapshot.size} documentos en la subcolección "${subcoleccion}" con el criterio: ${campo} = ${valor}.`);
+    } else {
+      console.log(`No se encontraron documentos en la subcolección "${subcoleccion}" con el criterio: ${campo} = ${valor}.`);
+    }
+  } catch (error) {
+    console.error("Error al eliminar en la subcolección con WriteBatch:", error);
+  }
 };
